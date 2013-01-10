@@ -21,7 +21,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.google.j2objc</groupId>
   <artifactId>j2objc</artifactId>
-  <packaging>pom</packaging>
+  <packaging>jar</packaging>
   <version>0.8</version>
   <name>j2objc</name>
   <url>https://code.google.com/p/j2objc/</url>
