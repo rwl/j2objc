@@ -19,6 +19,7 @@ package com.google.devtools.j2objc;
 import com.google.common.base.Preconditions;
 
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,6 +67,14 @@ public abstract class Plugin {
    * getOption. Subclasses may override this to process any needed options.
    */
   protected void beginProcessing() throws IOException { }
+
+  /**
+   * Initialize type map with classes that are explicitly mapped to an iOS
+   * type.
+   */
+  public void initializeTypeMap(Map<ITypeBinding, ITypeBinding> typeMap) { }
+
+  public void populateSimpleTypeMap(Map<String, String> simpleTypeMap) { }
 
   /**
    * Called to process the given CompilationUnit after J2ObjC has processed
