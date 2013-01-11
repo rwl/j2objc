@@ -62,6 +62,7 @@ import java.util.Set;
 // TODO(user): convert to injectable implementation, to allow translator
 // core to be reused for other languages.
 public class Types {
+  private final CompilationUnit unit;
   private final AST ast;
   private final Map<Object, IBinding> bindingMap;
   private final Map<ITypeBinding, ITypeBinding> typeMap = Maps.newHashMap();
@@ -125,8 +126,9 @@ public class Types {
 
   private static final int STATIC_FINAL_MODIFIERS = Modifier.STATIC | Modifier.FINAL;
 
-  private Types(CompilationUnit unit) {
-    ast = unit.getAST();
+  private Types(CompilationUnit compilationUnit) {
+    unit = compilationUnit;
+    ast = compilationUnit.getAST();
     initializeBaseClasses();
     javaObjectType = ast.resolveWellKnownType("java.lang.Object");
     javaClassType = ast.resolveWellKnownType("java.lang.Class");
@@ -145,7 +147,7 @@ public class Types {
     populateArrayTypeMaps();
     populatePrimitiveTypeNameMap();
     populatePrimitiveAndWrapperTypeMaps();
-    bindingMap = BindingMapBuilder.buildBindingMap(unit);
+    bindingMap = BindingMapBuilder.buildBindingMap(compilationUnit);
     setGlobalRenamings();
   }
 
@@ -217,7 +219,7 @@ public class Types {
     NSNumber.setMappedType(javaNumberType.getSuperclass());
 
     for (Plugin plugin : Options.getPlugins()) {
-      plugin.initializeTypeMap(typeMap);
+      plugin.initializeTypeMap(unit, typeMap);
     }
   }
 
@@ -228,7 +230,7 @@ public class Types {
     simpleTypeMap.put("JavaLangCloneable", "NSCopying");
 
     for (Plugin plugin : Options.getPlugins()) {
-      plugin.populateSimpleTypeMap(simpleTypeMap);
+      plugin.populateSimpleTypeMap(unit, simpleTypeMap);
     }
   }
 

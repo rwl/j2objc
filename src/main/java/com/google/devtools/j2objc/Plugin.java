@@ -72,9 +72,9 @@ public abstract class Plugin {
    * Initialize type map with classes that are explicitly mapped to an iOS
    * type.
    */
-  public void initializeTypeMap(Map<ITypeBinding, ITypeBinding> typeMap) { }
+  public void initializeTypeMap(CompilationUnit unit, Map<ITypeBinding, ITypeBinding> typeMap) { }
 
-  public void populateSimpleTypeMap(Map<String, String> simpleTypeMap) { }
+  public void populateSimpleTypeMap(CompilationUnit unit, Map<String, String> simpleTypeMap) { }
 
   /**
    * Called to process the given CompilationUnit after J2ObjC has processed
