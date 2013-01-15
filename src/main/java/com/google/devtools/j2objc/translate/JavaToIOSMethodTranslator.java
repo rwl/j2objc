@@ -71,16 +71,18 @@ public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
 
   private final Map<String, String> methodMappings;
 
-  public JavaToIOSMethodTranslator(AST ast, Map<String, String> methodMappings) {
+  public JavaToIOSMethodTranslator(AST ast, Map<String, String> methodMappings, List<ITypeBinding> wrapperBindings) {
     this.ast = ast;
     this.methodMappings = methodMappings;
+    for (ITypeBinding typeBinding : wrapperBindings) {
+      loadTargetMethods(typeBinding);
+    }
     loadTargetMethods(ast.resolveWellKnownType("java.lang.Object"));
     loadTargetMethods(ast.resolveWellKnownType("java.lang.Class"));
     ITypeBinding javaLangString = ast.resolveWellKnownType("java.lang.String");
     loadTargetMethods(javaLangString);
     loadCharSequenceMethods(javaLangString);
     javaLangCloneable = ast.resolveWellKnownType("java.lang.Cloneable");
-
   }
 
   private void loadTargetMethods(ITypeBinding clazz) {

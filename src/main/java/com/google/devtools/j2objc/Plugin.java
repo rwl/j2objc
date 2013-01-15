@@ -23,7 +23,9 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -77,6 +79,8 @@ public abstract class Plugin {
   public void populateSimpleTypeMap(CompilationUnit unit, Map<String, String> simpleTypeMap) { }
 
   public void mapMethods(CompilationUnit unit, Map<String, String> methodMappings) { }
+
+  public List<ITypeBinding> getWrapperBindings(CompilationUnit unit) { return null; }
 
   /**
    * Called to process the given CompilationUnit after J2ObjC has processed

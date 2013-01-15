@@ -45,6 +45,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
 import org.eclipse.text.edits.MalformedTreeException;
@@ -361,14 +362,18 @@ public class J2ObjC {
     new JavaToIOSTypeConverter().run(unit);
     Map<String, String> methodMappings = Options.getMethodMappings();
     if (methodMappings.isEmpty()) {
-      // Method maps are loaded here so tests can call translate() directly.
-      loadMappingFiles();
-
       for (Plugin plugin : Options.getPlugins()) {
         plugin.mapMethods(unit, Options.getMethodMappings());
       }
+
+      // Method maps are loaded here so tests can call translate() directly.
+      loadMappingFiles();
     }
-    new JavaToIOSMethodTranslator(unit.getAST(), methodMappings).run(unit);
+    List<ITypeBinding> wrapperBindings = Lists.newArrayList();
+    for (Plugin plugin : Options.getPlugins()) {
+      wrapperBindings.addAll(plugin.getWrapperBindings(unit));
+    }
+    new JavaToIOSMethodTranslator(unit.getAST(), methodMappings, wrapperBindings).run(unit);
 
     // Add dealloc/finalize method(s), if necessary.  This is done
     // after inner class extraction, so that each class releases
