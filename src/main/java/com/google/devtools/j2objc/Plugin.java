@@ -76,6 +76,8 @@ public abstract class Plugin {
 
   public void populateSimpleTypeMap(CompilationUnit unit, Map<String, String> simpleTypeMap) { }
 
+  public void mapMethods(CompilationUnit unit, Map<String, String> methodMappings) { }
+
   /**
    * Called to process the given CompilationUnit after J2ObjC has processed
    * it.

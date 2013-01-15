@@ -363,6 +363,10 @@ public class J2ObjC {
     if (methodMappings.isEmpty()) {
       // Method maps are loaded here so tests can call translate() directly.
       loadMappingFiles();
+
+      for (Plugin plugin : Options.getPlugins()) {
+        plugin.mapMethods(unit, Options.getMethodMappings());
+      }
     }
     new JavaToIOSMethodTranslator(unit.getAST(), methodMappings).run(unit);
 
