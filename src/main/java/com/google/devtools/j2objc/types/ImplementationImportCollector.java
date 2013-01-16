@@ -30,7 +30,6 @@ import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -130,7 +129,7 @@ public class ImplementationImportCollector extends HeaderImportCollector {
 
   @Override
   public boolean visit(ArrayType node) {
-    addReference(Types.getTypeBinding(node.getComponentType()));
+    addReference(Types.getTypeBinding(node).getComponentType());
     return super.visit(node);
   }
 
@@ -164,6 +163,8 @@ public class ImplementationImportCollector extends HeaderImportCollector {
         if (!parameterType.equals(actualType) &&
             actualType.isAssignmentCompatible(parameterType)) {
           addReference(actualType);
+        } else {
+          addReference(parameterType);
         }
       }
     }
@@ -173,14 +174,6 @@ public class ImplementationImportCollector extends HeaderImportCollector {
   @Override
   public boolean visit(TypeLiteral node) {
     addReference(node.getType());
-    return super.visit(node);
-  }
-
-  @Override
-  public boolean visit(EnhancedForStatement node) {
-    addReference(node.getParameter().getType());
-    addReference("JavaLangNullPointerException", "java.lang.NullPointerException", true);
-    addReference("JavaUtilIterator", "java.util.Iterator", true);
     return super.visit(node);
   }
 
@@ -293,6 +286,8 @@ public class ImplementationImportCollector extends HeaderImportCollector {
         IVariableBinding var = Types.getVariableBinding(expr);
         if (var == null || var.isEnumConstant()) {
           addReference(Types.getTypeBinding(expr));
+        } else {
+          addReference(var.getType());
         }
       }
     }
@@ -313,7 +308,7 @@ public class ImplementationImportCollector extends HeaderImportCollector {
         break;
       }
       if (expr instanceof QualifiedName) {
-        expr = ((QualifiedName)expr).getQualifier();
+        expr = ((QualifiedName) expr).getQualifier();
         if (expr.resolveTypeBinding() == null) {
           break;
         }

@@ -527,9 +527,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
           IVariableBinding varBinding = Types.getVariableBinding(var);
           if (type.isPrimitive()) {
             print("assign");
-          } else if (Types.isWeakReference(varBinding) ||
-              (varBinding.getName().startsWith("this$") &&
-                  Types.hasWeakAnnotation(varBinding.getDeclaringClass()))) {
+          } else if (Types.isWeakReference(varBinding)) {
             print(Options.useARC() ? "weak" : "assign");
           } else if (type.isEqualTo(Types.getNSString())) {
             print("copy");
@@ -543,7 +541,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
           String propertyName = NameTable.getName(var.getName());
           println(String.format(") %s%s;", typeString, propertyName));
           if (propertyName.startsWith("new") || propertyName.startsWith("copy")
-              || propertyName.startsWith("alloc")) {
+              || propertyName.startsWith("alloc") || propertyName.startsWith("init")) {
             println(String.format("- (%s)%s OBJC_METHOD_FAMILY_NONE;",
                 NameTable.javaRefToObjC(type), propertyName));
           }

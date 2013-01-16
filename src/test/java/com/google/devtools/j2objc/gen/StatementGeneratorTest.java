@@ -246,11 +246,32 @@ public class StatementGeneratorTest extends GenerationTest {
   }
 
   public void testMultipleVariableDeclarations() throws IOException {
-    String source = "Object one, two;";
+    String source = "String one, two;";
     List<Statement> stmts = translateStatements(source);
     assertEquals(1, stmts.size());
     String result = generateStatement(stmts.get(0));
-    assertEquals("NSObject *one, *two;", result);
+    assertEquals("NSString *one, *two;", result);
+  }
+
+  public void testObjectDeclaration() throws IOException {
+    List<Statement> stmts = translateStatements("Object o;");
+    assertEquals(1, stmts.size());
+    String result = generateStatement(stmts.get(0));
+    assertEquals("id o;", result);
+  }
+
+  public void testInterfaceTypeReferencesWithinGenericClassesResolveCorrectly() throws IOException {
+    String translation = translateSourceFile(
+      " public class Example<S> { " +
+      "   private Example() {} " +
+      "   private static final Foo DEFAULT = new Foo() { " +
+      "       @Override public <S> void run(Example<S> e){} " +
+      "   }; " +
+      "   private static Foo var = DEFAULT; " +
+      "   public static final void setVarForTest(Foo param) { var = param; } " +
+      "   interface Foo { <S> void run(Example<S> e); } } ",
+      "Example", "Example.m");
+    assertTranslation(translation, "[Example setVarWithExample_Foo:");
   }
 
   public void testStaticBooleanFields() throws IOException {
@@ -266,6 +287,18 @@ public class StatementGeneratorTest extends GenerationTest {
       "public class Example<K,V> { void test() { String s = \"hello, \" + \"world\"; }}",
       "Example", "Example.m");
     assertTranslation(translation, "NSString *s = @\"hello, world\"");
+  }
+
+  public void testStringConcatenation2() throws IOException {
+    String source = "class A { " +
+        "private static final String A = \"bob\"; " +
+        "private static final char SPACE = ' '; " +
+        "private static final double ANSWER = 22.0 / 2; " +
+        "private static final boolean B = false; " +
+        "private static final String C = " +
+        "\"hello \" + A + ' ' + 3 + SPACE + true + ' ' + ANSWER + ' ' + B; }";
+    String translation = translateSourceFile(source, "A", "A.m");
+    assertTranslation(translation, "\"hello bob 3 true 11.0 false\"");
   }
 
   public void testStringConcatenationTypes() throws IOException {
@@ -286,7 +319,7 @@ public class StatementGeneratorTest extends GenerationTest {
       "return \"literals: \" + true + \", \" + 'c' + \", \" + 1.0d + \", \" + 3.14 + \", \"" +
       " + 42 + \", \" + 123L + \", \" + 1; }}",
       "Example", "Example.m");
-    assertTranslation(translation, "return @\"literals: true, 'c', 1.0d, 3.14, 42, 123L, 1\";");
+    assertTranslation(translation, "return @\"literals: true, c, 1.0d, 3.14, 42, 123L, 1\";");
   }
 
   public void testStringConcatenationEscaping() throws IOException {
@@ -401,7 +434,7 @@ public class StatementGeneratorTest extends GenerationTest {
       "static class Two extends One { Two(int i) { super(i); }}}",
       "Test", "Test.m");
     assertTranslation(translation, "- (id)initWithInt:(int)i");
-    assertTranslation(translation, "return [super initWithInt:i];");
+    assertTranslation(translation, "[super initWithInt:i]");
   }
 
   public void testStaticInnerClassSuperFieldAccess() throws IOException {
@@ -597,7 +630,8 @@ public class StatementGeneratorTest extends GenerationTest {
     List<Statement> stmts = translateStatements(source);
     assertEquals(2, stmts.size());
     String result = generateStatement(stmts.get(1));
-    assertTrue(result.contains("{\nint n__"));
+    assertTranslation(result, "int n__ = ");
+    assertTranslation(result, "for (int i__ = 0; i__ < n__; i__++) {");
   }
 
   public void testSwitchStatementWithExpression() throws IOException {
@@ -787,10 +821,10 @@ public class StatementGeneratorTest extends GenerationTest {
       "Test", "Test.h");
     // Test_B's "other" needs a trailing underscore, since there is an "other"
     // field in its superclass.
-    assertTranslation(translation, "@property (nonatomic, retain) Test_B *other_;");
+    assertTranslation(translation, "@property (nonatomic, retain) Test_B *other_B;");
     translation = getTranslatedFile("Test.m");
     assertTranslation(translation,
-        "JreOperatorRetainedAssign(&other__, ((Test_B *) [self getOther]))");
+        "JreOperatorRetainedAssign(&other_B_, ((Test_B *) [self getOther]))");
   }
 
   public void testArrayInstanceOfTranslation() throws IOException {
@@ -883,9 +917,9 @@ public class StatementGeneratorTest extends GenerationTest {
         "public class B extends A { B() {} public void init(int b) { super.init(b); }}", "B.java");
     String translation = translateSourceFile("A", "A.h");
     assertTranslation(translation, "- (id)init;");
-    assertTranslation(translation, "- (void)init__WithInt:(int)a;");
+    assertTranslation(translation, "- (void)init__WithInt:(int)a");
     translation = translateSourceFile("B", "B.m");
-    assertTranslation(translation, "return (self = [super init]);");
+    assertTranslation(translation, "return (self = JreMemDebugAdd([super init]));");
     assertTranslation(translation, "[super init__WithInt:b];");
   }
 
@@ -919,10 +953,10 @@ public class StatementGeneratorTest extends GenerationTest {
       "    a[0][0] = \"42\"; System.out.println(a[0].length); }}",
       "Test", "Test.m");
     assertTranslation(translation,
-        "[(IOSObjectArray *) [((IOSObjectArray *) NIL_CHK([Test a])) objectAtIndex:0] " +
+        "[((IOSObjectArray *) [((IOSObjectArray *) NIL_CHK([Test a])) objectAtIndex:0]) " +
         "replaceObjectAtIndex:0 withObject:@\"42\"];");
     assertTranslation(translation,
-        "[(IOSObjectArray *) [((IOSObjectArray *) NIL_CHK([Test a])) objectAtIndex:0] count]");
+        "[((IOSObjectArray *) [((IOSObjectArray *) NIL_CHK([Test a])) objectAtIndex:0]) count]");
   }
 
   public void testMultiDimArray() throws IOException {
@@ -939,7 +973,7 @@ public class StatementGeneratorTest extends GenerationTest {
 
   public void testObjectMultiDimArray() throws IOException {
     String source = "class Test { Integer i = new Integer(1); Integer j = new Integer(2);" +
-    	"void test() { Integer[][] a = new Integer[][] { null, { i, j }, { j, i }}; }}";
+        "void test() { Integer[][] a = new Integer[][] { null, { i, j }, { j, i }}; }}";
     String translation = translateSourceFile(source, "Test", "Test.m");
     assertTranslation(translation,
         "IOSObjectArray *a = [IOSObjectArray arrayWithObjects:(id[]){ nil, " +
@@ -1076,7 +1110,7 @@ public class StatementGeneratorTest extends GenerationTest {
       "public class A { String prefix(Object o) { return new String(o + B.separator); }}",
       "A", "A.m");
     assertTranslation(translation,
-        "[NSString stringWithString:[NSString stringWithFormat:@\"%@%@\", o, [B separator]]];");
+        "[NSString stringWithString:[NSString stringWithFormat:@\"%@/\", o]];");
   }
 
   public void testStringConcatWithBoolean() throws IOException {
@@ -1092,6 +1126,15 @@ public class StatementGeneratorTest extends GenerationTest {
       "public class A { String test(char c) { return \"foo: \" + c; }}",
       "A", "A.m");
     assertTranslation(translation, "return [NSString stringWithFormat:@\"foo: %c\", c];");
+  }
+
+  // Verify that double quote character constants are concatenated correctly.
+  public void testConcatDoubleQuoteChar() throws IOException {
+    String translation = translateSourceFile(
+        "public class Test { " +
+        "static final char QUOTE = '\"'; static final String TEST = QUOTE + \"\"; }",
+        "Test", "Test.m");
+    assertTranslation(translation, "Test_TEST_ = @\"\\\"\";");
   }
 
   /**
@@ -1214,7 +1257,6 @@ public class StatementGeneratorTest extends GenerationTest {
         "Test", "Test.m");
     assertTranslation(translation, "  for (int i = 0; i < 10; i++) {\n" +
         "    @autoreleasepool {\n" +
-        "      {\n      }\n" +
         "    }\n" +
         "  }");
   }
@@ -1266,5 +1308,15 @@ public class StatementGeneratorTest extends GenerationTest {
         "Test", "Test.m");
     assertTranslation(translation,
       "NSAssert(a < b, @\"a should be lower than b\")");
+  }
+
+  // Verify that a Unicode escape sequence is preserved with string
+  // concatenation.
+  public void testUnicodeStringConcat() throws IOException {
+    String translation = translateSourceFile(
+      "class Test { static final String NAME = \"\\u4e2d\\u56fd\";" +
+      " static final String CAPTION = \"China's name is \";" +
+      " static final String TEST = CAPTION + NAME; }", "Test", "Test.m");
+    assertTranslation(translation, "Test_TEST_ = @\"China's name is \\u4e2d\\u56fd\"");
   }
 }

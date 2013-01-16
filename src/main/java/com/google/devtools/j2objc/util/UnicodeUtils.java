@@ -56,6 +56,13 @@ public final class UnicodeUtils {
         String chunk = s.substring(lastIndex, i);
         buffer.append(chunk);
 
+        if (i > 0 && s.charAt(i - 1) == '\\') {
+          // Escaped back slash, ignore.
+          buffer.append("\\u");
+          lastIndex = i + 2;
+          continue;
+        }
+
         // Convert hex Unicode number; format valid due to compiler check.
         if (s.length() >= i + 6) {
           char value = (char) Integer.parseInt(s.substring(i + 2, i + 6), 16);
@@ -116,6 +123,22 @@ public final class UnicodeUtils {
       }
     }
     return true;
+  }
+
+  /**
+   * Restore Unicode escape sequences to a string that has non-ASCII
+   * characters.
+   */
+  public static String escapeNonLatinCharacters(String s) {
+    String result = "";
+    for (char c : s.toCharArray()) {
+      if (c <= 0x7f) {
+        result += c;
+      } else {
+        result += "\\u" + String.format("%04x", (int) c);
+      }
+    }
+    return result;
   }
 
   /**

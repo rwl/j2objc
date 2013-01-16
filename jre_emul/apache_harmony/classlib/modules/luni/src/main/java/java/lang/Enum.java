@@ -17,6 +17,7 @@
 package java.lang;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
 
 /**
  * The superclass of all enumerated types. Actual enumeration types inherit from
@@ -126,6 +127,9 @@ public abstract class Enum<E extends Enum<E>> implements Serializable,
      * @see java.lang.Comparable
      */
     public final int compareTo(E o) {
+	if (o == null) {
+	    throw new NullPointerException();
+	}
         return ordinal - ((Enum<E>) o).ordinal;
     }
 
@@ -138,7 +142,7 @@ public abstract class Enum<E extends Enum<E>> implements Serializable,
     public final Class<E> getDeclaringClass() {
         Class<?> myClass = getClass();
         Class<?> mySuperClass = myClass.getSuperclass();
-        if (Enum.class == mySuperClass) {
+        if (Enum.class.equals(mySuperClass)) {
             return (Class<E>)myClass;
         }
         return (Class<E>)mySuperClass;
@@ -181,7 +185,13 @@ public abstract class Enum<E extends Enum<E>> implements Serializable,
      * Returns null if there is a problem.
      */
     @SuppressWarnings("unchecked")
-    static native <T extends Enum<T>> T[] getValues(final Class<T> enumType) /*-{
-        return nil;
-    }-*/;
+    static <T extends Enum<T>> T[] getValues(final Class<T> enumType) {
+        try {
+            Method values = enumType.getMethod("values", (Class[]) null);
+            values.setAccessible(true);
+            return (T[]) values.invoke(enumType, (Object[])null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

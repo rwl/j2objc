@@ -156,13 +156,13 @@ public class ObjectiveCHeaderGeneratorTest extends GenerationTest {
   public void testInitMessageTranslation() throws IOException {
     String translation = translateSourceFile(
         "public class Example { void init() {} }", "Example", "Example.h");
-    assertTranslation(translation, "- (void)init__;");
+    assertTranslation(translation, "- (void)init__ OBJC_METHOD_FAMILY_NONE;");
   }
 
   public void testInitializeMessageTranslation() throws IOException {
     String translation = translateSourceFile(
         "public class Example { void initialize() {} }", "Example", "Example.h");
-    assertTranslation(translation, "- (void)initialize__;");
+    assertTranslation(translation, "- (void)initialize__ OBJC_METHOD_FAMILY_NONE;");
   }
 
   public void testToStringRenaming() throws IOException {
@@ -174,9 +174,9 @@ public class ObjectiveCHeaderGeneratorTest extends GenerationTest {
 
   public void testMultipleObjectDeclaration() throws IOException {
     String translation = translateSourceFile(
-      "public class Example { Object one, two, three; }",
+      "public class Example { String one, two, three; }",
       "Example", "Example.h");
-    assertTranslation(translation, "NSObject *one_, *two_, *three_;");
+    assertTranslation(translation, "NSString *one_, *two_, *three_;");
   }
 
   public void testMultiplePrimitiveDeclaration() throws IOException {
@@ -361,12 +361,15 @@ public class ObjectiveCHeaderGeneratorTest extends GenerationTest {
   public void testOverriddenFieldTranslation() throws IOException {
     String translation = translateSourceFile(
         "public class Example { int size; } " +
-        "class Subclass extends Example { int size; }",
+        "class Subclass extends Example { int size; }" +
+        "class Subsubclass extends Subclass { int size; }",
         "Example", "Example.h");
     assertTranslation(translation, "int size_;");
     assertTranslation(translation, "@property (nonatomic, assign) int size;");
-    assertTranslation(translation, "int size__;");
-    assertTranslation(translation, "@property (nonatomic, assign) int size_;");
+    assertTranslation(translation, "int size_Subclass_;");
+    assertTranslation(translation, "@property (nonatomic, assign) int size_Subclass;");
+    assertTranslation(translation, "int size_Subsubclass_;");
+    assertTranslation(translation, "@property (nonatomic, assign) int size_Subsubclass;");
   }
 
   public void testOverriddenNameTranslation() throws IOException {
@@ -376,8 +379,8 @@ public class ObjectiveCHeaderGeneratorTest extends GenerationTest {
         "Example", "Example.h");
     assertTranslation(translation, "int size__;");
     assertTranslation(translation, "@property (nonatomic, assign) int size_;");
-    assertTranslation(translation, "int size___;");
-    assertTranslation(translation, "@property (nonatomic, assign) int size__;");
+    assertTranslation(translation, "int size_Subclass_;");
+    assertTranslation(translation, "@property (nonatomic, assign) int size_Subclass;");
   }
 
   public void testEnumNaming() throws IOException {
@@ -459,5 +462,22 @@ public class ObjectiveCHeaderGeneratorTest extends GenerationTest {
     assertTranslation(translation, "@implementation FooExample\n");
     assertFalse(translation.contains("- (void)externalWithNSString:(NSString *)s"));
     assertTranslation(translation, "[self externalWithNSString:str];");
+  }
+
+  public void testPropertiesOfTypeWeakOuter() throws IOException {
+    String sourceContent =
+        "  import com.google.j2objc.annotations.Weak;"
+        + "import com.google.j2objc.annotations.WeakOuter;"
+        + "public class FooBar {"
+        + "  @Weak private Internal fieldBar;"
+        + "  private Internal fieldFoo;"
+        + "  @WeakOuter"
+        + "  private class Internal {"
+        + "  }"
+        + "}";
+    String translation = translateSourceFile(sourceContent,
+      "FooBar", "FooBar.h");
+    assertTranslation(translation, "@property (nonatomic, assign) FooBar_Internal *fieldBar;");
+    assertTranslation(translation, "@property (nonatomic, retain) FooBar_Internal *fieldFoo;");
   }
 }

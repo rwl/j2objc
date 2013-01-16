@@ -144,12 +144,13 @@ public class PrimitiveArrayTest extends GenerationTest {
         "Object[] foo = new Object[3]; Object o = foo[1];");
     assertEquals(2, stmts.size());
     String result = generateStatement(stmts.get(1));
-    assertEquals("NSObject *o = [((IOSObjectArray *) NIL_CHK(foo)) objectAtIndex:1];", result);
+    assertEquals("id o = [((IOSObjectArray *) NIL_CHK(foo)) objectAtIndex:1];", result);
 
     stmts = translateStatements("Exception[] foo = new Exception[3]; Exception o = foo[1];");
     assertEquals(2, stmts.size());
     result = generateStatement(stmts.get(1));
     assertEquals(
-        "JavaLangException *o = [((IOSObjectArray *) NIL_CHK(foo)) objectAtIndex:1];", result);
+        "JavaLangException *o = ((JavaLangException *) [((IOSObjectArray *) NIL_CHK(foo))"
+        + " objectAtIndex:1]);", result);
   }
 }

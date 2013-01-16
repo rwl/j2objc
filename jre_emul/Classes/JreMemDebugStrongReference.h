@@ -1,4 +1,4 @@
-// Copyright 2012 Google Inc. All Rights Reserved.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,23 +13,21 @@
 // limitations under the License.
 
 //
-//  IOSIterator.h
-//  JreEmulation
-//
-//  Created by Tom Ball on 2/2/12.
+// Strong reference info.
 //
 
 #import <Foundation/Foundation.h>
-#import "java/util/Iterator.h"
 
-// Implementation of java.util.Iterator for IOSList and IOSSet.
-@interface IOSIterator : NSObject < JavaUtilIterator > {
- @protected
-  NSMutableArray *list_;
-  int available_;
-  int lastPosition_;
-}
+@interface JreMemDebugStrongReference : NSObject
 
-- (id)initWithList:(NSMutableArray *)list;
++ (JreMemDebugStrongReference *)strongReferenceWithObject:(id)object name:(NSString *)name;
+
+#if __has_feature(objc_arc)
+@property (nonatomic, weak) id object;
+@property (nonatomic, strong) NSString *name;
+#else
+@property (nonatomic, assign) id object;
+@property (nonatomic, retain) NSString *name;
+#endif
 
 @end

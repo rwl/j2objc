@@ -18,6 +18,7 @@ package com.google.devtools.j2objc.translate;
 
 import com.google.devtools.j2objc.GenerationTest;
 import com.google.devtools.j2objc.J2ObjC;
+import com.google.devtools.j2objc.translate.DestructorGenerator;
 import com.google.devtools.j2objc.types.Types;
 
 import org.eclipse.jdt.core.dom.Assignment;
@@ -238,18 +239,21 @@ public class RewriterTest extends GenerationTest {
     assertTrue(types.get(0) instanceof TypeDeclaration);
     TypeDeclaration testType = (TypeDeclaration) types.get(0);
     MethodDeclaration[] methods = testType.getMethods();
-    assertEquals(3, methods.length);
+    assertEquals(4, methods.length);
 
     // verify added methods are abstract, and that existing method wasn't changed
     for (MethodDeclaration m : methods) {
       int modifiers = m.getModifiers();
-      if (m.getName().getIdentifier().equals("hasNext")) {
+      String name = m.getName().getIdentifier();
+      if (name.equals("hasNext")) {
         assertFalse(Modifier.isAbstract(modifiers));
+      } else if (name.equals(DestructorGenerator.FINALIZE_METHOD)
+          || name.equals(DestructorGenerator.DEALLOC_METHOD)) {
+        // it's ok.
       } else {
         // it's an added method
         assertTrue(Modifier.isAbstract(modifiers));
         assertEquals(0, m.parameters().size());
-        String name = m.getName().getIdentifier();
         if (name.equals("next")) {
           assertEquals(testType.resolveBinding(), Types.getBinding(m.getReturnType2()));
         } else if (name.equals("remove")) {
@@ -275,18 +279,21 @@ public class RewriterTest extends GenerationTest {
     assertTrue(types.get(0) instanceof TypeDeclaration);
     TypeDeclaration testType = (TypeDeclaration) types.get(0);
     MethodDeclaration[] methods = testType.getMethods();
-    assertEquals(25, methods.length);
+    assertEquals(26, methods.length);
 
     // verify added methods are abstract, and that existing method wasn't changed
     for (MethodDeclaration m : methods) {
       int modifiers = m.getModifiers();
-      if (m.getName().getIdentifier().equals("isEmpty")) {
+      String name = m.getName().getIdentifier();
+      if (name.equals("isEmpty")) {
         assertFalse(Modifier.isAbstract(modifiers));
+      } else if (name.equals(DestructorGenerator.FINALIZE_METHOD)
+          || name.equals(DestructorGenerator.DEALLOC_METHOD)) {
+        // it's ok.
       } else {
         // it's an added method
         assertTrue(Modifier.isAbstract(modifiers));
         ITypeBinding returnType = Types.getTypeBinding(m.getReturnType2());
-        String name = m.getName().getIdentifier();
         if (name.equals("toArray")) {
           assertTrue(returnType.isArray());
           ITypeBinding componentType = returnType.getComponentType();
@@ -343,7 +350,7 @@ public class RewriterTest extends GenerationTest {
     assertEquals("Test", innerType.getName().toString());
 
     MethodDeclaration[] methods = innerType.getMethods();
-    assertEquals(1, methods.length);
+    assertEquals(2, methods.length);
     MethodDeclaration equalsMethod = methods[0];
     assertEquals("isEqual", equalsMethod.getName().getIdentifier());
     assertEquals(1, equalsMethod.parameters().size());
@@ -419,10 +426,12 @@ public class RewriterTest extends GenerationTest {
           assertEquals(2, stmts.size());
           foundInitStatements = true;
 
+          List<Statement> blockStmts = ((Block) stmts.get(0)).statements();
           assertEquals("Test_a_=IOSIntArray.arrayWithInts({1,2,3},3);",
-              stmts.get(0).toString().trim());
+              blockStmts.get(0).toString().trim());
+          blockStmts = ((Block) stmts.get(1)).statements();
           assertEquals("Test_b_=IOSCharArray.arrayWithCharacters({'4','5'},2);",
-            stmts.get(1).toString().trim());
+            blockStmts.get(0).toString().trim());
         }
       }
     }
@@ -437,10 +446,10 @@ public class RewriterTest extends GenerationTest {
         "private int foo; " +
 
         "private static long serialVersionUID; " +
-  		"private void readObject(ObjectInputStream in) {} " +
-  		"private void writeObject(ObjectOutputStream out) {} " +
-  		"private void readObjectNoData() {} " +
-  		"private Object readResolve() { return null; } " +
+        "private void readObject(ObjectInputStream in) {} " +
+        "private void writeObject(ObjectOutputStream out) {} " +
+        "private void readObjectNoData() {} " +
+        "private Object readResolve() { return null; } " +
         "private Object writeResolve() { return null;} " +
 
         "public Test() {} " +
@@ -451,7 +460,7 @@ public class RewriterTest extends GenerationTest {
     assertEquals(9, members.size());
     J2ObjC.initializeTranslation(unit);
     J2ObjC.translate(unit, source);
-    assertEquals(3, members.size());
+    assertEquals(4, members.size());
     FieldDeclaration f = (FieldDeclaration) members.get(0);
     VariableDeclarationFragment var = (VariableDeclarationFragment) f.fragments().get(0);
     assertEquals("foo", var.getName().getIdentifier());
@@ -472,7 +481,7 @@ public class RewriterTest extends GenerationTest {
     J2ObjC.initializeTranslation(unit);
     J2ObjC.translate(unit, source);
     List<BodyDeclaration> classMembers = ((TypeDeclaration) unit.types().get(0)).bodyDeclarations();
-    assertEquals(7, classMembers.size()); // 3 fields + 3 getters + 1 clInit
+    assertEquals(8, classMembers.size()); // 3 fields + 3 getters + 1 clInit + 1 dealloc
 
     // Test that the clInit has the right statements in order.
     MethodDeclaration clInit = (MethodDeclaration) classMembers.get(6);
@@ -483,6 +492,9 @@ public class RewriterTest extends GenerationTest {
 
     // Test_iSet_ = new ...
     Statement first = statements.get(0);
+    assertTrue(first instanceof Block);
+    Block b = (Block) first;
+    first = (Statement) b.statements().get(0);
     assertTrue(first instanceof ExpressionStatement);
     Expression firstExpr = ((ExpressionStatement) first).getExpression();
     assertTrue(firstExpr instanceof Assignment);
@@ -491,12 +503,18 @@ public class RewriterTest extends GenerationTest {
 
     // iSet.add(...)
     Statement second = statements.get(1);
+    assertTrue(second instanceof Block);
+    b = (Block) second;
+    second = (Statement) b.statements().get(0);
     assertTrue(second instanceof ExpressionStatement);
     Expression secondExpr = ((ExpressionStatement) second).getExpression();
     assertTrue(secondExpr instanceof MethodInvocation);
 
     // Test_iSetSize_ = ...
     Statement third = statements.get(2);
+    assertTrue(third instanceof Block);
+    b = (Block) third;
+    third = (Statement) b.statements().get(0);
     assertTrue(third instanceof ExpressionStatement);
     Expression thirdExpr = ((ExpressionStatement) third).getExpression();
     assertTrue(thirdExpr instanceof Assignment);
@@ -534,5 +552,26 @@ public class RewriterTest extends GenerationTest {
     String translation = translateSourceFile(source, "Test", "Test.m");
     assertTranslation(translation, "+ (NSString *)foo {");
     assertFalse(translation.contains("setFoo"));
+  }
+
+  // Regression test: the wrong method name used for "f.group()" translation.
+  public void testNSLogWithMethodInvocation() throws IOException {
+    String source = "public class A { " +
+        "String group() { return \"foo\"; } " +
+        "void test() { A a = new A(); System.out.println(a.group()); }}";
+    String translation = translateSourceFile(source, "A", "A.m");
+    assertTranslation(translation, "NSLog(@\"%@\", [((A *) NIL_CHK(a)) group]);");
+  }
+
+  // Regression test: Must call "charValue" on boxed type returned from iterator.
+  public void testEnhancedForWithBoxedType() throws IOException {
+    String source = "import java.util.List;" +
+        "public class A { " +
+        "List<Character> chars; " +
+        "void test() { for (char c : chars) {} } }";
+    String translation = translateSourceFile(source, "A", "A.m");
+    assertTranslation(translation,
+        "unichar c = [((JavaLangCharacter *) [((id<JavaUtilIterator>) NIL_CHK(iter__)) next]) " +
+        "charValue];");
   }
 }

@@ -301,13 +301,15 @@ public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
       for (IMethodBinding methodBinding : mappedMethods) {
         if (binding.overrides(methodBinding)) {
           JavaMethod desc = getDescription(methodBinding);
-          String value = methodMappings.get(desc.getKey());
-          if (value != null) {
-            IOSMethod iosMethod = new IOSMethod(value, binding, ast);
-            NameTable.rename(methodBinding, iosMethod.getName());
-            Types.addMappedIOSMethod(binding, iosMethod);
-            Types.addMappedInvocation(node, iosMethod.resolveBinding());
-            break;
+          if (desc != null) {
+            String value = methodMappings.get(desc.getKey());
+            if (value != null) {
+              IOSMethod iosMethod = new IOSMethod(value, binding, ast);
+              NameTable.rename(methodBinding, iosMethod.getName());
+              Types.addMappedIOSMethod(binding, iosMethod);
+              Types.addMappedInvocation(node, iosMethod.resolveBinding());
+              break;
+            }
           }
         }
       }
@@ -381,14 +383,16 @@ public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
       for (IMethodBinding methodBinding : mappedMethods) {
         if (binding.overrides(methodBinding)) {
           JavaMethod desc = getDescription(methodBinding);
-          String value = methodMappings.get(desc.getKey());
-          if (value != null) {
-            IOSMethod iosMethod = new IOSMethod(value, binding, ast);
-            node.setName(NameTable.unsafeSimpleName(iosMethod.getName(), ast));
-            Types.addMappedIOSMethod(binding, iosMethod);
-            IMethodBinding newBinding = iosMethod.resolveBinding();
-            Types.addBinding(node, newBinding);
-            Types.addBinding(node.getName(), newBinding);
+          if (desc != null) {
+            String value = methodMappings.get(desc.getKey());
+            if (value != null) {
+              IOSMethod iosMethod = new IOSMethod(value, binding, ast);
+              node.setName(NameTable.unsafeSimpleName(iosMethod.getName(), ast));
+              Types.addMappedIOSMethod(binding, iosMethod);
+              IMethodBinding newBinding = iosMethod.resolveBinding();
+              Types.addBinding(node, newBinding);
+              Types.addBinding(node.getName(), newBinding);
+            }
           }
         }
       }

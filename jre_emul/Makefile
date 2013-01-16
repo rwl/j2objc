@@ -28,16 +28,12 @@ IOS_OBJS = \
 	$(CLASS_DIR)/IOSByteArray.o \
 	$(CLASS_DIR)/IOSCharArray.o \
 	$(CLASS_DIR)/IOSClass.o \
-	$(CLASS_DIR)/IOSCollection.o \
 	$(CLASS_DIR)/IOSDoubleArray.o \
 	$(CLASS_DIR)/IOSFloatArray.o \
 	$(CLASS_DIR)/IOSIntArray.o \
-	$(CLASS_DIR)/IOSIterator.o \
-	$(CLASS_DIR)/IOSList.o \
 	$(CLASS_DIR)/IOSLongArray.o \
 	$(CLASS_DIR)/IOSObjectArray.o \
 	$(CLASS_DIR)/IOSPrimitiveClass.o \
-	$(CLASS_DIR)/IOSSet.o \
 	$(CLASS_DIR)/IOSShortArray.o \
 	$(CLASS_DIR)/java/lang/System.o \
 	$(CLASS_DIR)/java/lang/Throwable.o \
@@ -49,8 +45,8 @@ IOS_OBJS = \
 	$(CLASS_DIR)/java/util/HashMap.o \
 	$(CLASS_DIR)/java/util/LinkedHashMap.o \
 	$(CLASS_DIR)/JreEmulation.o \
-	$(CLASS_DIR)/NSException+StackTrace.o \
-	$(CLASS_DIR)/NSData+IOSByteArray.o \
+	$(CLASS_DIR)/JreMemDebug.o \
+	$(CLASS_DIR)/JreMemDebugStrongReference.o \
 	$(CLASS_DIR)/NSObject+JavaObject.o \
 	$(CLASS_DIR)/NSString+JavaString.o
 
@@ -232,6 +228,7 @@ OBJS = \
 	$(CLASS_DIR)/java/util/ArrayList.o \
 	$(CLASS_DIR)/java/util/Arrays.o \
 	$(CLASS_DIR)/java/util/BitSet.o \
+	$(CLASS_DIR)/java/util/Calendar.o \
 	$(CLASS_DIR)/java/util/Collections.o \
 	$(CLASS_DIR)/java/util/ConcurrentModificationException.o \
 	$(CLASS_DIR)/java/util/concurrent/atomic/AtomicInteger.o \
@@ -241,13 +238,18 @@ OBJS = \
 	$(CLASS_DIR)/java/util/concurrent/ExecutorService.o \
 	$(CLASS_DIR)/java/util/concurrent/Future.o \
 	$(CLASS_DIR)/java/util/concurrent/TimeUnit.o \
+	$(CLASS_DIR)/java/util/Currency.o \
 	$(CLASS_DIR)/java/util/Date.o \
 	$(CLASS_DIR)/java/util/Dictionary.o \
+	$(CLASS_DIR)/java/util/EnumSet.o \
 	$(CLASS_DIR)/java/util/EventListener.o \
 	$(CLASS_DIR)/java/util/EventObject.o \
 	$(CLASS_DIR)/java/util/EmptyStackException.o \
+	$(CLASS_DIR)/java/util/Grego.o \
+	$(CLASS_DIR)/java/util/GregorianCalendar.o \
 	$(CLASS_DIR)/java/util/HashSet.o \
 	$(CLASS_DIR)/java/util/Hashtable.o \
+	$(CLASS_DIR)/java/util/HugeEnumSet.o \
 	$(CLASS_DIR)/java/util/IdentityHashMap.o \
 	$(CLASS_DIR)/java/util/InputMismatchException.o \
 	$(CLASS_DIR)/java/util/LinkedList.o \
@@ -261,13 +263,16 @@ OBJS = \
 	$(CLASS_DIR)/java/util/logging/LogRecord.o \
 	$(CLASS_DIR)/java/util/logging/NSLogHandler.o \
 	$(CLASS_DIR)/java/util/MapEntry.o \
+	$(CLASS_DIR)/java/util/MiniEnumSet.o \
 	$(CLASS_DIR)/java/util/NavigableMap.o \
 	$(CLASS_DIR)/java/util/NavigableSet.o \
 	$(CLASS_DIR)/java/util/NoSuchElementException.o \
 	$(CLASS_DIR)/java/util/PriorityQueue.o \
 	$(CLASS_DIR)/java/util/Properties.o \
 	$(CLASS_DIR)/java/util/Random.o \
+	$(CLASS_DIR)/java/util/SimpleTimeZone.o \
 	$(CLASS_DIR)/java/util/Stack.o \
+	$(CLASS_DIR)/java/util/TimeZone.o \
 	$(CLASS_DIR)/java/util/TreeMap.o \
 	$(CLASS_DIR)/java/util/TreeSet.o \
 	$(CLASS_DIR)/java/util/Vector.o \
@@ -486,10 +491,6 @@ $(CLASS_DIR)/java/lang/Math.h $(CLASS_DIR)/java/lang/Math.m: \
 
 $(CLASS_DIR)/java/lang/System.h $(CLASS_DIR)/java/lang/System.m: \
 	  $(EMULATION_CLASS_DIR)/java/lang/System.java
-	$(J2OBJC) $?
-
-$(CLASS_DIR)/java/util/Date.h $(CLASS_DIR)/java/util/Date.m: \
-	  $(EMULATION_CLASS_DIR)/java/util/Date.java
 	$(J2OBJC) $?
 
 $(CLASS_DIR)/java/util/concurrent/Future.h $(CLASS_DIR)/java/util/concurrent/Future.m: \

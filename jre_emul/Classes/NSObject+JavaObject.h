@@ -43,11 +43,15 @@
 // behavior for itself or its subclasses.
 - (void)copyAllPropertiesTo:(id)copy;
 
+- (NSArray *)memDebugStrongReferences;
+
++ (NSArray *)memDebugStaticReferences;
+
 @end
 
 // Marked as unused to avoid a clang warning when this file is included
 // but NIL_CHK isn't used.
-__attribute__ ((unused)) static id nil_chk(id p) {
+__attribute__ ((unused)) static inline id nil_chk(id p) {
   return p ? p : [NSObject throwNullPointerException];
 }
 

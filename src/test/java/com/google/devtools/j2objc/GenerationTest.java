@@ -24,6 +24,7 @@ import com.google.devtools.j2objc.gen.ObjectiveCImplementationGenerator;
 import com.google.devtools.j2objc.gen.SourceBuilder;
 import com.google.devtools.j2objc.gen.SourcePosition;
 import com.google.devtools.j2objc.gen.StatementGenerator;
+import com.google.devtools.j2objc.translate.DestructorGenerator;
 
 import junit.framework.TestCase;
 
@@ -62,7 +63,10 @@ public abstract class GenerationTest extends TestCase {
   @Override
   protected void setUp() throws IOException {
     tempDir = createTempDir();
-    Options.load(new String[] { "-d", tempDir.getAbsolutePath() });
+    Options.load(new String[] {
+      "-d", tempDir.getAbsolutePath(),
+      "--mem-debug" // Run tests with memory debugging by default.
+    });
     lastLog = "";
   }
 
@@ -265,6 +269,11 @@ public abstract class GenerationTest extends TestCase {
     unit.accept(new ASTVisitor() {
       @Override
       public boolean visit(MethodDeclaration node) {
+        String name = node.getName().getIdentifier();
+        if (name.equals(DestructorGenerator.FINALIZE_METHOD) ||
+            name.equals(DestructorGenerator.DEALLOC_METHOD)) {
+          return false;
+        }
         assert result[0] == null;
         result[0] = node;
         return false;

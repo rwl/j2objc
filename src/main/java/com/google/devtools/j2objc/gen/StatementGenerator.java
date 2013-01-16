@@ -21,6 +21,7 @@ import com.google.common.base.CharMatcher;
 import com.google.common.collect.Lists;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.Options;
+import com.google.devtools.j2objc.translate.DestructorGenerator;
 import com.google.devtools.j2objc.types.GeneratedMethodBinding;
 import com.google.devtools.j2objc.types.IOSArrayTypeBinding;
 import com.google.devtools.j2objc.types.IOSMethod;
@@ -402,26 +403,30 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(ArrayAccess node) {
+    ITypeBinding elementType = Types.getTypeBinding(node);
+    boolean castPrinted = false;
+    if (!elementType.isPrimitive()) {
+      castPrinted = printCast(elementType);
+    }
     buffer.append('[');
     printNilCheck(node.getArray(), true);
     buffer.append(' ');
 
-    ITypeBinding binding = node.resolveTypeBinding();
-    if (binding == null) {
-      binding = Types.getTypeBinding(node);
-    }
-    IOSTypeBinding arrayBinding = Types.resolveArrayType(binding);
-    if (arrayBinding == null) {
-      J2ObjC.error(node, "No IOSArrayBinding for " + binding.getName());
+    IOSTypeBinding iosArrayType = Types.resolveArrayType(elementType);
+    if (iosArrayType == null) {
+      J2ObjC.error(node, "No IOSArrayBinding for " + elementType.getName());
     } else {
-      assert(arrayBinding instanceof IOSArrayTypeBinding);
-      IOSArrayTypeBinding primitiveArray = (IOSArrayTypeBinding) arrayBinding;
+      assert(iosArrayType instanceof IOSArrayTypeBinding);
+      IOSArrayTypeBinding primitiveArray = (IOSArrayTypeBinding) iosArrayType;
       buffer.append(primitiveArray.getAccessMethod());
     }
 
     buffer.append(':');
     node.getIndex().accept(this);
     buffer.append(']');
+    if (castPrinted) {
+      buffer.append(')');
+    }
     return false;
   }
 
@@ -597,16 +602,15 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     Expression lhs = node.getLeftHandSide();
     Expression rhs = node.getRightHandSide();
     if (op == Operator.PLUS_ASSIGN &&
-        Types.isJavaStringType(lhs.resolveTypeBinding())) {
+        Types.isJavaStringType(Types.getTypeBinding(lhs))) {
       if (Options.useReferenceCounting() && isLeftHandSideRetainedProperty(lhs)) {
         String name = leftHandSideInstanceVariableName(lhs);
         buffer.append("JreOperatorRetainedAssign(&" + name);
         buffer.append(", ");
         printStringConcatenation(lhs, rhs, Collections.<Expression>emptyList());
         buffer.append(")");
-      }
-      else {
-        printAssignmentLhs(lhs);
+      } else {
+        lhs.accept(this);
         // Change "str1 += str2" to "str1 = str1 + str2".
         buffer.append(" = ");
         printStringConcatenation(lhs, rhs, Collections.<Expression>emptyList());
@@ -644,7 +648,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
         }
         buffer.append(" set");
         buffer.append(NameTable.capitalize(var.getName()));
-        String typeName = NameTable.javaTypeToObjC(var.getType(), false);
+        String typeName = NameTable.javaTypeToObjC(var.getType(), true);
         String param = ObjectiveCSourceFileGenerator.parameterKeyword(typeName, var.getType());
         buffer.append(NameTable.capitalize(param));
         buffer.append(':');
@@ -658,8 +662,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
           buffer.append(", ");
           rhs.accept(this);
           buffer.append(")");
-        }
-        else {
+        } else {
           lhs.accept(this);
           buffer.append(" = ");
           rhs.accept(this);
@@ -672,7 +675,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       // LEFT_SHIFT_ASSIGN, MINUS_ASSIGN, PLUS_ASSIGN, REMAINDER_ASSIGN,
       // RIGHT_SHIFT_SIGNED_ASSIGN, RIGHT_SHIFT_UNSIGNED_ASSIGN and
       // TIMES_ASSIGN.
-      printAssignmentLhs(lhs);
+      lhs.accept(this);
       buffer.append(' ');
       buffer.append(op.toString());
       buffer.append(' ');
@@ -689,9 +692,6 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     ArrayAccess aa = (ArrayAccess) lhs;
     String kind = getArrayAccessKind(aa);
     buffer.append('[');
-    if (aa.getArray() instanceof ArrayAccess) {
-      buffer.append(String.format("(IOS%sArray *) ", kind));
-    }
     printNilCheck(aa.getArray(), true);
     buffer.append(" replace");
     buffer.append(kind);
@@ -759,11 +759,9 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       IVariableBinding var = Types.getVariableBinding(lhs);
       ITypeBinding type = Types.getTypeBinding(lhs);
       if (!type.isPrimitive() && lhs instanceof SimpleName) {
-        if (isProperty((SimpleName) lhs) && !Types.hasWeakAnnotation(var.getDeclaringClass()) &&
-            !Types.isWeakReference(var)) {
+        if (isProperty((SimpleName) lhs) && !Types.isWeakReference(var)) {
           isRetainedProperty = true;
-        }
-        else if (isStaticVariableAccess(lhs)) {
+        } else if (isStaticVariableAccess(lhs)) {
           isRetainedProperty = true;
         }
       }
@@ -781,33 +779,17 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
 
     if (Options.inlineFieldAccess()) {
       // Inline the setter for a property.
-      IVariableBinding var = Types.getVariableBinding(lhs);
       if (lhs instanceof SimpleName) {
         if (isProperty((SimpleName) lhs)) {
           String name = NameTable.getName((SimpleName) lhs);
           nativeName = NameTable.javaFieldToObjC(name);
-        }
-        else if (isStaticVariableAccess(lhs)) {
+        } else if (isStaticVariableAccess(lhs)) {
           nativeName = NameTable.getName((SimpleName) lhs);
         }
       }
     }
 
     return nativeName;
-  }
-
-  private boolean printAssignmentLhs(Expression lhs) {
-    boolean needClosingParen = false;
-    String nativeName = leftHandSideInstanceVariableName(lhs);
-
-    if ((nativeName != null) && Options.useReferenceCounting() &&
-        isLeftHandSideRetainedProperty(lhs)) {
-      buffer.append(String.format("([%s autorelease], ", nativeName));
-      needClosingParen = true;
-    }
-
-    lhs.accept(this);
-    return needClosingParen;
   }
 
   private void printUnsignedRightShift(Expression lhs, Expression rhs) {
@@ -825,9 +807,10 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   }
 
   private String getRightShiftType(Expression node) {
-    ITypeBinding binding = node.resolveTypeBinding();
+    ITypeBinding binding = Types.getTypeBinding(node);
+    assert binding != null;
     AST ast = node.getAST();
-    if (binding == null || ast.resolveWellKnownType("int").equals(binding)) {
+    if (ast.resolveWellKnownType("int").equals(binding)) {
       return "int";
     } else if (ast.resolveWellKnownType("long").equals(binding)) {
       return "long long";
@@ -844,10 +827,43 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(Block node) {
+    if (Types.hasAutoreleasePool(node)) {
+      if (Options.useReferenceCounting()) {
+        // TODO(user): use @autoreleasepool like ARC when iOS 5 is minimum.
+        buffer.append("{\nNSAutoreleasePool *pool__ = [[NSAutoreleasePool alloc] init];\n");
+      } else if (Options.useARC()) {
+        buffer.append("{\n@autoreleasepool ");
+      }
+    }
     buffer.append("{\n");
     List<?> stmts = node.statements();
+    // In case it's the body of a dealloc method, we generate the debug statement.
+    // If we detect a -[super dealloc] method call, we are in a dealloc method.
+    int size = stmts.size();
+    if (size > 0) {
+      if (stmts.get(size - 1) instanceof ExpressionStatement) {
+        ASTNode subnode = ((ExpressionStatement) stmts.get(size - 1)).getExpression();
+        if (subnode instanceof SuperMethodInvocation) {
+          SuperMethodInvocation invocation = (SuperMethodInvocation) subnode;
+          IMethodBinding binding = Types.getMethodBinding(invocation);
+          String methodName = NameTable.getName(binding);
+          if (Options.memoryDebug() &&
+              ((methodName.equals(DestructorGenerator.FINALIZE_METHOD)) ||
+               (methodName.equals(DestructorGenerator.DEALLOC_METHOD)))) {
+            buffer.append("JreMemDebugRemove(self);\n");
+          }
+        }
+      }
+    }
     printStatements(stmts);
     buffer.append("}\n");
+    if (Types.hasAutoreleasePool(node)) {
+      if (Options.useReferenceCounting()) {
+        buffer.append("[pool__ release];\n}\n");
+      } else if (Options.useARC()) {
+        buffer.append("}\n");
+      }
+    }
     return false;
   }
 
@@ -858,31 +874,6 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       s.accept(this);
     }
   }
-
-  /**
-   * Returns true if a node defines an assignment of a new instance to a instance or static
-   * field.  This test is used when generating referencing counting code to see if autorelease
-   * and retain messages are necessary.
-   */
-  private boolean isNewAssignment(ASTNode node) {
-    if (node instanceof Assignment) {
-      Assignment assign = (Assignment) node;
-      Expression lhs = assign.getLeftHandSide();
-      Expression rhs = assign.getRightHandSide();
-      boolean instanceCreation = (rhs instanceof ClassInstanceCreation
-                               || rhs instanceof ArrayCreation);
-      if (lhs instanceof FieldAccess) {
-        return false;
-      }
-      if (isStaticVariableAccess(lhs)) {
-        return instanceCreation;
-      }
-      IVariableBinding var = Types.getVariableBinding(lhs);
-      return var != null && var.isField() && instanceCreation;
-    }
-    return false;
-  }
-
   @Override
   public boolean visit(BooleanLiteral node) {
     buffer.append(node.booleanValue() ? "YES" : "NO");
@@ -1041,96 +1032,9 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(EnhancedForStatement node) {
-    SingleVariableDeclaration var = node.getParameter();
-    boolean emitAutoreleasePool = Types.hasAutoreleasePoolAnnotation(Types.getBinding(var));
-    String varName = NameTable.getName(var.getName());
-    if (NameTable.isReservedName(varName)) {
-      varName += "__";
-      NameTable.rename(Types.getBinding(var.getName()), varName);
-    }
-    String arrayExpr = generate(node.getExpression(), fieldHiders, asFunction,
-        buffer.getSourcePosition());
-    ITypeBinding arrayType = Types.getTypeBinding(node.getExpression());
-    if (arrayType.isArray()) {
-      buffer.append("{\nint n__ = [");
-      buffer.append(arrayExpr);
-      buffer.append(" count];\n");
-      buffer.append("for (int i__ = 0; i__ < n__; i__++) {\n");
-      printAutoreleasePoolStart(emitAutoreleasePool);
-      buffer.append(NameTable.javaRefToObjC(var.getType()));
-      buffer.append(' ');
-      buffer.append(varName);
-      buffer.append(" = [");
-      buffer.append(arrayExpr);
-      buffer.append(' ');
-      if (arrayType.getComponentType().isPrimitive()) {
-        buffer.append(var.getType().toString());
-      } else {
-        buffer.append("object");
-      }
-      buffer.append("AtIndex:i__];\n");
-      Statement body = node.getBody();
-      if (body instanceof Block) {
-        // strip surrounding braces
-        printStatements(((Block) body).statements());
-      } else {
-        body.accept(this);
-      }
-      printAutoreleasePoolEnd(emitAutoreleasePool);
-      buffer.append("}\n}\n");
-    } else {
-      // var must be an instance of an Iterable class.
-      String objcType = NameTable.javaRefToObjC(var.getType());
-      buffer.append("{\nid<JavaLangIterable> array__ = (id<JavaLangIterable>) ");
-      buffer.append(arrayExpr);
-      buffer.append(";\n");
-      buffer.append("if (!array__) {\n");
-      if (useReferenceCounting) {
-        buffer.append("@throw [[[JavaLangNullPointerException alloc] init] autorelease];\n}\n");
-      } else {
-        buffer.append("@throw [[JavaLangNullPointerException alloc] init];\n}\n");
-      }
-      buffer.append("id<JavaUtilIterator> iter__ = [array__ iterator];\n");
-      buffer.append("while ([iter__ hasNext]) {\n");
-      printAutoreleasePoolStart(emitAutoreleasePool);
-      buffer.append(objcType);
-      buffer.append(' ');
-      buffer.append(varName);
-      buffer.append(" = (");
-      buffer.append(objcType);
-      buffer.append(") [iter__ next];\n");
-      Statement body = node.getBody();
-      if (body instanceof Block) {
-        // strip surrounding braces
-        printStatements(((Block) body).statements());
-      } else {
-        body.accept(this);
-      }
-      printAutoreleasePoolEnd(emitAutoreleasePool);
-      buffer.append("}\n}\n");
-    }
+    // Enhanced for loops should be rewritten prior to code generation.
+    assert false;
     return false;
-  }
-
-  private void printAutoreleasePoolStart(boolean emitAutoreleasePool) {
-    if (emitAutoreleasePool) {
-      // TODO(user): use @autoreleasepool like ARC when iOS 5 is minimum.
-      if (Options.useReferenceCounting()) {
-        buffer.append("{\nNSAutoreleasePool *pool__ = [[NSAutoreleasePool alloc] init];\n");
-      } else if (Options.useARC()) {
-        buffer.append("{\n@autoreleasepool {\n");
-      }
-    }
-  }
-
-  private void printAutoreleasePoolEnd(boolean emitAutoreleasePool) {
-    if (emitAutoreleasePool) {
-      if (Options.useReferenceCounting()) {
-        buffer.append("[pool__ release];\n}\n");
-      } else if (Options.useARC()) {
-        buffer.append("}\n}\n");
-      }
-    }
   }
 
   @Override
@@ -1197,9 +1101,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       }
     }
     buffer.append(") ");
-    printAutoreleasePoolStart(emitAutoreleasePool);
     node.getBody().accept(this);
-    printAutoreleasePoolEnd(emitAutoreleasePool);
     return false;
   }
 
@@ -1264,26 +1166,56 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     // Copy all operands into a single list.
     List<Expression> operands = Lists.newArrayList(leftOperand, rightOperand);
     operands.addAll(extendedOperands);
-
     String format = "@\"";
+
+    AST ast = leftOperand.getAST();
     List<Expression> args = Lists.newArrayList();
     for (Expression operand : operands) {
-      if (operand instanceof BooleanLiteral
-          || operand instanceof CharacterLiteral
-          || operand instanceof NullLiteral) {
-        format += operand.toString();
-      } else if (operand instanceof StringLiteral) {
+      IBinding binding = Types.getBinding(operand);
+      if (binding instanceof IVariableBinding) {
+        IVariableBinding var = (IVariableBinding) binding;
+        var = var.getVariableDeclaration();
+        Object value = var.getConstantValue();
+        if (value instanceof String) {
+          String s = (String) value;
+          StringLiteral literal = ast.newStringLiteral();
+          literal.setLiteralValue(s);
+          if (UnicodeUtils.hasValidCppCharacters(s)) {
+            s = unquoteAndEscape(literal.getEscapedValue());
+            s = UnicodeUtils.escapeNonLatinCharacters(s);
+            format += UnicodeUtils.escapeStringLiteral(s);
+          } else {
+            J2ObjC.error(operand,
+                "String constant has Unicode or octal escape sequences that are not valid in " +
+                "Objective-C.\nEither make string non-final, or remove characters.");
+          }
+          continue;
+        } else if (value instanceof Character) {
+          char c = (Character) value;
+          if (c == '"') {
+            format += '\\';
+          }
+          format += c;
+          continue;
+        } else if (value != null) {
+          format += value.toString();
+          continue;
+        } // else fall through to next section.
+      }
+      if (operand instanceof StringLiteral) {
         StringLiteral literal = (StringLiteral) operand;
         if (UnicodeUtils.hasValidCppCharacters(literal.getLiteralValue())) {
-          String s = literal.getEscapedValue();
-          s = s.substring(1, s.length() - 1); // remove surrounding double-quotes
-          s = UnicodeUtils.escapeStringLiteral(s);
-          format += s.replace("%", "%%");     // escape % character
+          String s = unquoteAndEscape(literal.getEscapedValue());
+          format += UnicodeUtils.escapeStringLiteral(s);
         } else {
           // Convert to NSString invocation when printing args.
           format += "%@";
           args.add(operand);
         }
+      } else if (operand instanceof BooleanLiteral) {
+        format += String.valueOf(((BooleanLiteral) operand).booleanValue());
+      } else if (operand instanceof CharacterLiteral) {
+        format += unquoteAndEscape(((CharacterLiteral) operand).getEscapedValue());
       } else if (operand instanceof NumberLiteral) {
         format += ((NumberLiteral) operand).getToken();
       } else {
@@ -1338,6 +1270,20 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       }
     }
     buffer.append(']');
+  }
+
+  // Remove surrounding single or double-quotes, and escape sequences.
+  private String unquoteAndEscape(String s) {
+    if (s == null || s.length() < 2) {
+      return s;
+    }
+    int len = s.length();
+    char start = s.charAt(0);
+    char end = s.charAt(len - 1);
+    assert (start == '\'' || start == '"');
+    assert (start == end);
+    s = s.substring(1, len - 1);
+    return s.replace("%", "%%");     // escape % character
   }
 
   private void printStringConcatenationArg(Expression arg) {
@@ -1611,8 +1557,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       if (kind == 'F') {
         token += 'f';
       }
-    }
-    else if (kind == 'J') {
+    } else if (kind == 'J') {
       if (token.equals("0x8000000000000000L") || token.equals("-9223372036854775808L")) {
         // Convert min long literal to an expression
         token = "-0x7fffffffffffffffLL - 1";
@@ -1657,7 +1602,8 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   public boolean visit(PostfixExpression node) {
     if (node.getOperand() instanceof ArrayAccess) {
       PostfixExpression.Operator op = node.getOperator();
-      if (op == PostfixExpression.Operator.INCREMENT || op == PostfixExpression.Operator.DECREMENT) {
+      if (op == PostfixExpression.Operator.INCREMENT
+          || op == PostfixExpression.Operator.DECREMENT) {
         String methodName = op == PostfixExpression.Operator.INCREMENT ? "postIncr" : "postDecr";
         printArrayIncrementOrDecrement((ArrayAccess) node.getOperand(), methodName);
         return false;
@@ -1745,10 +1691,6 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   private boolean maybePrintArrayLength(String name, Expression qualifier) {
     if (name.equals("length") && Types.getTypeBinding(qualifier).isArray()) {
       buffer.append("(int) ["); // needs cast: count returns an unsigned value
-      if (qualifier instanceof ArrayAccess) {
-        String kind = getArrayAccessKind((ArrayAccess) qualifier);
-        buffer.append(String.format("(IOS%sArray *) ", kind));
-      }
       printNilCheck(qualifier, true);
       buffer.append(" count]");
       return true;

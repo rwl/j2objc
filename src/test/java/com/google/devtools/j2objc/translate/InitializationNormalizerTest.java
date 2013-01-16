@@ -21,6 +21,7 @@ import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.NameTable;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
@@ -106,7 +107,7 @@ public class InitializationNormalizerTest extends GenerationTest {
     TypeDeclaration clazz =
         translateClassBody("static java.util.Date date = new java.util.Date();");
     List<BodyDeclaration> classMembers = clazz.bodyDeclarations();
-    assertEquals(4, classMembers.size()); // added two accessors and initialize method
+    assertEquals(5, classMembers.size()); // added two accessors and initialize method
 
     // test that initializer was stripped from the declaration
     BodyDeclaration decl = classMembers.get(0);
@@ -155,8 +156,10 @@ public class InitializationNormalizerTest extends GenerationTest {
     assertTrue(method.parameters().isEmpty());
     generatedStatements = method.getBody().statements();
     assertEquals(1, generatedStatements.size());
-    assertTrue(generatedStatements.get(0) instanceof ExpressionStatement);
-    stmt = (ExpressionStatement) generatedStatements.get(0);
+    assertTrue(generatedStatements.get(0) instanceof Block);
+    Block b = (Block) generatedStatements.get(0);
+    assertTrue(b.statements().get(0) instanceof ExpressionStatement);
+    stmt = (ExpressionStatement) b.statements().get(0);
     assertTrue(stmt.getExpression() instanceof Assignment);
     assign = (Assignment) stmt.getExpression();
     assertEquals("Test_date_", NameTable.getName(Types.getBinding(assign.getLeftHandSide())));
@@ -213,8 +216,9 @@ public class InitializationNormalizerTest extends GenerationTest {
     assertTrue(superInvoke.arguments().isEmpty());
 
     // test that initializer statement was moved to constructor
-    assertTrue(generatedStatements.get(1) instanceof ExpressionStatement);
-    ExpressionStatement stmt = (ExpressionStatement) generatedStatements.get(1);
+    assertTrue(generatedStatements.get(1) instanceof Block);
+    Block b = (Block) generatedStatements.get(1);
+    ExpressionStatement stmt = (ExpressionStatement) b.statements().get(0);
     assertTrue(stmt.getExpression() instanceof Assignment);
     Assignment assign = (Assignment) stmt.getExpression();
     assertEquals("date", assign.getLeftHandSide().toString());
@@ -224,7 +228,7 @@ public class InitializationNormalizerTest extends GenerationTest {
   public void testStaticInitializerBlock() {
     TypeDeclaration clazz = translateClassBody("static { System.out.println(\"foo\"); }");
     List<BodyDeclaration> classMembers = clazz.bodyDeclarations();
-    assertEquals(1, classMembers.size());
+    assertEquals(2, classMembers.size());
 
     // test that a static initialize() method was created
     BodyDeclaration decl = classMembers.get(0);
@@ -237,8 +241,10 @@ public class InitializationNormalizerTest extends GenerationTest {
     // test that the method body consists of the block's statement
     List<Statement> generatedStatements = method.getBody().statements();
     assertEquals(1, generatedStatements.size());
-    assertTrue(generatedStatements.get(0) instanceof ExpressionStatement);
-    ExpressionStatement stmt = (ExpressionStatement) generatedStatements.get(0);
+    assertTrue(generatedStatements.get(0) instanceof Block);
+    Block b = (Block) generatedStatements.get(0);
+    assertTrue(b.statements().get(0) instanceof ExpressionStatement);
+    ExpressionStatement stmt = (ExpressionStatement) b.statements().get(0);
     assertEquals("NSLog(\"%@\",\"foo\")", stmt.getExpression().toString());
   }
 
@@ -246,7 +252,7 @@ public class InitializationNormalizerTest extends GenerationTest {
     TypeDeclaration clazz = translateClassBody(
         "Test() { this(42); } Test(int i) {} Test(int i, byte b) { System.out.print(b); }");
     List<BodyDeclaration> classMembers = clazz.bodyDeclarations();
-    assertEquals(3, classMembers.size());
+    assertEquals(4, classMembers.size());
 
     BodyDeclaration decl = classMembers.get(0);
     assertTrue(decl instanceof MethodDeclaration);
@@ -289,8 +295,10 @@ public class InitializationNormalizerTest extends GenerationTest {
     generatedStatements = method.getBody().statements();
     assertEquals(3, generatedStatements.size());
     assertTrue(generatedStatements.get(0) instanceof SuperConstructorInvocation);
-    assertTrue(generatedStatements.get(1) instanceof ExpressionStatement);
-    Expression expr = ((ExpressionStatement) generatedStatements.get(1)).getExpression();
+    assertTrue(generatedStatements.get(1) instanceof Block);
+    Block b = (Block) generatedStatements.get(1);
+    assertTrue(b.statements().get(0) instanceof ExpressionStatement);
+    Expression expr = ((ExpressionStatement) b.statements().get(0)).getExpression();
     assertTrue(expr instanceof Assignment);
     assertTrue(generatedStatements.get(2) instanceof ExpressionStatement);
     expr = ((ExpressionStatement) generatedStatements.get(2)).getExpression();
@@ -345,5 +353,16 @@ public class InitializationNormalizerTest extends GenerationTest {
     assertTranslation(translation,
         "JreOperatorRetainedAssign(&Test_foo_, [NSString stringWithFormat:@\"hello%@\", "
         + "[NSString stringWithCharacters:(unichar[]) { (int) 0xffff } length:1]]);");
+  }
+
+  public void testInitializersPlacedAfterOuterAssignments() throws IOException {
+    String source = "class Test { "
+         + "  int outerVar = 1; "
+         + "  class Inner { int innerVar = outerVar; } }";
+    String translation = translateSourceFile(source, "Test", "Test.m");
+    assertTranslation(translation, "JreOperatorRetainedAssign(&this$0_, outer$0);");
+    assertTranslation(translation, "innerVar_ = this$0_.outerVar;");
+    assertTrue(translation.indexOf("JreOperatorRetainedAssign(&this$0_, outer$0);")
+               < translation.indexOf("innerVar_ = this$0_.outerVar;"));
   }
 }

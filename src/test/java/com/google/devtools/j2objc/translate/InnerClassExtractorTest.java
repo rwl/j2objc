@@ -159,9 +159,9 @@ public class InnerClassExtractorTest extends GenerationTest {
         "static class Foo { int i; Foo() { this(0); } Foo(int i) { this.i = i; } }");
     assertEquals(2, types.size());
     List<BodyDeclaration> classMembers = types.get(0).bodyDeclarations();
-    assertTrue(classMembers.isEmpty());
+    assertTrue(classMembers.size() == 1);
     TypeDeclaration innerClass = types.get(1);
-    assertEquals(3, innerClass.bodyDeclarations().size());
+    assertEquals(4, innerClass.bodyDeclarations().size());
     List<?> members = innerClass.bodyDeclarations();
 
     FieldDeclaration field = (FieldDeclaration) members.get(0);
@@ -533,7 +533,7 @@ public class InnerClassExtractorTest extends GenerationTest {
     // Verify that main method creates a new instanceof B associated with
     // a new instance of Test.
     List<BodyDeclaration> classMembers = types.get(0).bodyDeclarations();
-    assertEquals(1, classMembers.size());
+    assertEquals(2, classMembers.size());
     MethodDeclaration method = (MethodDeclaration) classMembers.get(0);
     assertEquals("main", method.getName().getIdentifier());
     VariableDeclarationStatement field =
@@ -588,7 +588,7 @@ public class InnerClassExtractorTest extends GenerationTest {
     // Verify that main method creates a new instanceof B associated with
     // a new instance of Test.
     List<BodyDeclaration> classMembers = types.get(0).bodyDeclarations();
-    assertEquals(1, classMembers.size());
+    assertEquals(2, classMembers.size());
     MethodDeclaration method = (MethodDeclaration) classMembers.get(0);
     assertEquals("main", method.getName().getIdentifier());
     VariableDeclarationStatement field =
@@ -798,5 +798,13 @@ public class InnerClassExtractorTest extends GenerationTest {
     String translation = translateSourceFile("A", "A.m");
     assertTranslation(translation,
         "[[[Outer_Inner alloc] initWithOuter:self withId:@\"test\"] autorelease];");
+  }
+
+  public void testNoOuterFieldAssignmentWhenCallingOtherConstructor() throws IOException {
+    String source = "class Outer { class Inner { " +
+        "Inner(int i) {} Inner() { this(42); } } }";
+    String translation = translateSourceFile(source, "Outer", "Outer.m");
+    assertTranslation(translation, "- (id)initWithOuter:(Outer *)outer$0 {\n" +
+        "  return JreMemDebugAdd([self initOuter_InnerWithOuter:outer$0 withInt:42]);\n}");
   }
 }

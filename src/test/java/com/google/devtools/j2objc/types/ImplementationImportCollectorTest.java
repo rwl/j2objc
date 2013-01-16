@@ -54,10 +54,34 @@ public class ImplementationImportCollectorTest extends GenerationTest {
     // Nothing to do; Successful translation is the test.
   }
 
-  public void testArrayImport() throws IOException {
+  public void testBooleanArrayImport() throws IOException {
     addSourceFile("class A { boolean[] b; }", "A.java");
     String translation = translateSourceFile(
         "class B { int test() { return new A().b.length; }}", "B", "B.m");
     assertTranslation(translation, "#import \"IOSBooleanArray.h\"");
+  }
+
+  public void testPrimitiveArrayAsParameterImport() throws IOException {
+    addSourceFile(
+        "class B { protected char bits[]; public B(char[] bits_) { bits = bits_;} }", "B.java");
+    String translation = translateSourceFile(
+        "class A { public static final B test = new B(new char[]{'a', 'b'}); }", "A", "A.m");
+    assertTranslation(translation, "#import \"IOSCharArray.h\"");
+  }
+
+  public void testObjectArrayImport() throws IOException {
+    String translation = translateSourceFile(
+        "import java.util.BitSet; class A { public BitSet[] test = new BitSet[3]; }", "A", "A.m");
+    assertTranslation(translation, "#import \"IOSObjectArray.h\"");
+    assertTranslation(translation, "#import \"java/util/BitSet.h\"");
+  }
+
+  public void testEnhancedForMethodInvocation() throws IOException {
+    addSourceFile("import java.util.*; class A { " +
+    	"final Map<String,String> map; }", "A.java");
+    String translation = translateSourceFile(
+        "import java.util.*; class B extends A { " +
+        "void test() { for (String s : map.keySet()) {}}}", "B", "B.m");
+    assertTranslation(translation, "#import \"java/util/Map.h\"");
   }
 }
