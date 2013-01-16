@@ -112,13 +112,13 @@ public class DeadCodeEliminator extends ErrorReportingASTVisitor {
     List<BodyDeclaration> body = node.bodyDeclarations();
     eliminateDeadCode(node.resolveBinding(), node.bodyDeclarations());
 
-    if (!node.isInterface() && !Modifier.isAbstract(node.getModifiers())) {
+    if (!Types.isInterface(node) && !Modifier.isAbstract(node.getModifiers())) {
       generateMissingMethods(node.getAST(), binding, body);
     }
 
     ITypeBinding clazz = node.resolveBinding();
     ITypeBinding superClass = clazz.getSuperclass();
-    if (!clazz.isInterface() && !clazz.isAnonymous() && superClass != null
+    if (!Types.isInterface(clazz) && !clazz.isAnonymous() && superClass != null
         && !getConstructors(clazz).hasNext()) {
       Iterator<IMethodBinding> superConstructors = getVisible(getConstructors(superClass));
       if (superConstructors.hasNext() && !getWithArity(0, superConstructors).hasNext()) {
@@ -882,7 +882,7 @@ public class DeadCodeEliminator extends ErrorReportingASTVisitor {
           throw new AssertionError("Impossible common type: unrelated classes");
         }
       } else {
-        assert otherType.isInterface();
+        assert Types.isInterface(otherType);
         interfaces.add(otherType);
       }
     }

@@ -118,7 +118,7 @@ public class ImportCollector extends ErrorReportingASTVisitor {
             || !(binding instanceof IOSTypeBinding))) {
       binding = Types.mapType(binding);
       String typeName = NameTable.getFullName(binding);
-      boolean isInterface = binding.isInterface();
+      boolean isInterface = Types.isInterface(binding);
       while (!binding.isTopLevel()) {
         binding = binding.getDeclaringClass();
       }

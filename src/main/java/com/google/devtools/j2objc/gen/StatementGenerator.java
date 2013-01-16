@@ -523,7 +523,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
 
   private void printObjectArrayType(ITypeBinding componentType) {
     buffer.append("[IOSClass ");
-    if (componentType.isInterface()) {
+    if (Types.isInterface(componentType)) {
       buffer.append("classWithProtocol:@protocol(");
       buffer.append(NameTable.getFullName(componentType));
       buffer.append(')');
@@ -1386,13 +1386,13 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     }
 
     buffer.append('[');
-    if (leftBinding.isInterface()) {
+    if (Types.isInterface(leftBinding)) {
       // Obj-C complains when a id<Protocol> is tested for a different
       // protocol, so cast it to a generic id.
       buffer.append("(id) ");
     }
     node.getLeftOperand().accept(this);
-    if (rightBinding.isInterface()) {
+    if (Types.isInterface(rightBinding)) {
       buffer.append(" conformsToProtocol: @protocol(");
       node.getRightOperand().accept(this);
       buffer.append(")");
@@ -1437,7 +1437,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     } else if (methodName.equals("isAssignableFrom") &&
         binding.getDeclaringClass().equals(Types.getIOSClass())) {
       printIsAssignableFromExpression(node);
-    } else if (methodName.equals("getClass") && receiver != null && receiverType.isInterface()) {
+    } else if (methodName.equals("getClass") && receiver != null && Types.isInterface(receiverType)) {
       printInterfaceGetClass(node, receiver);
     } else {
       boolean castAttempted = false;
@@ -1487,7 +1487,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
             }
           } else {
             ITypeBinding receiverReturnType = methodReceiver.getReturnType();
-            if (receiverReturnType.isInterface()) {
+            if (Types.isInterface(receiverReturnType)) {
               // Add interface cast, so Obj-C knows the type node's receiver is.
               if (!castAttempted) {
                 castPrinted = printCast(receiverReturnType);
@@ -1567,7 +1567,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       type = bound;
     }
     buffer.append("((");
-    if (type.isInterface()) {
+    if (Types.isInterface(type)) {
       buffer.append("id<");
       buffer.append(NameTable.getFullName(type));
       buffer.append('>');
@@ -2184,7 +2184,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       buffer.append('[');
       buffer.append(NameTable.getFullName(wrapperType));
       buffer.append(" TYPE]");
-    } else if (typeBinding != null && typeBinding.isInterface()) {
+    } else if (typeBinding != null && Types.isInterface(typeBinding)) {
       buffer.append("[IOSClass classWithProtocol:@protocol(");
       type.accept(this);
       buffer.append(")]");

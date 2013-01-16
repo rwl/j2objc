@@ -61,7 +61,7 @@ public class HiddenFieldDetector extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(TypeDeclaration node) {
-    if (!node.isInterface()) {
+    if (!Types.isInterface(node)) {
       Set<String> names = Sets.newLinkedHashSet();
       ITypeBinding binding = Types.getTypeBinding(node);
       addFields(binding, true, names);

@@ -335,13 +335,13 @@ public class NameTable {
   }
 
   public static String javaTypeToObjC(ITypeBinding binding, boolean includeInterfaces) {
-    if (binding.isInterface() && !includeInterfaces || binding == Types.resolveIOSType("id") ||
+    if (Types.isInterface(binding) && !includeInterfaces || binding == Types.resolveIOSType("id") ||
         binding == Types.resolveIOSType("NSObject")) {
       return NameTable.ID_TYPE;
     }
     if (binding.isTypeVariable()) {
       binding = binding.getErasure();
-      if (Types.isJavaObjectType(binding) || binding.isInterface()) {
+      if (Types.isJavaObjectType(binding) || Types.isInterface(binding)) {
         return NameTable.ID_TYPE;
       }
       // otherwise fall-through
@@ -362,7 +362,7 @@ public class NameTable {
     }
     String typeName = javaTypeToObjC(type, false);
     if (typeName.equals(NameTable.ID_TYPE) || Types.isJavaVoidType(type)) {
-      if (type.isInterface()) {
+      if (Types.isInterface(type)) {
         return String.format("%s<%s>", ID_TYPE, getFullName(type));
       }
       return NameTable.ID_TYPE;
@@ -446,6 +446,9 @@ public class NameTable {
     }
     if (superclass instanceof SimpleType || superclass instanceof QualifiedType) {
       ITypeBinding binding = Types.getTypeBinding(superclass).getErasure();
+      if (Types.isInterface(binding)) {
+        return "NSObject";
+      }
       String typeName = binding instanceof IOSTypeBinding ? binding.getQualifiedName()
           : getFullName(binding);
       return Types.mapSimpleTypeName(typeName);

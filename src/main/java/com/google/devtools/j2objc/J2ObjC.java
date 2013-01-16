@@ -362,12 +362,11 @@ public class J2ObjC {
     new JavaToIOSTypeConverter().run(unit);
     Map<String, String> methodMappings = Options.getMethodMappings();
     if (methodMappings.isEmpty()) {
-      for (Plugin plugin : Options.getPlugins()) {
-        plugin.mapMethods(unit, Options.getMethodMappings());
-      }
-
       // Method maps are loaded here so tests can call translate() directly.
       loadMappingFiles();
+    }
+    for (Plugin plugin : Options.getPlugins()) {
+      plugin.mapMethods(unit, Options.getMethodMappings());
     }
     List<ITypeBinding> wrapperBindings = Lists.newArrayList();
     for (Plugin plugin : Options.getPlugins()) {

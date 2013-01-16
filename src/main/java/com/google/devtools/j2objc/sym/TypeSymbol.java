@@ -68,7 +68,7 @@ public class TypeSymbol extends Symbol {
   }
 
   public boolean isInterface() {
-    return getType().isInterface();
+    return Types.isInterface(getType());
   }
 
   @Override

@@ -108,7 +108,7 @@ public abstract class ObjectiveCSourceFileGenerator extends SourceFileGenerator 
    * an interface constant.
    */
   protected boolean isInterfaceConstantAccessor(IMethodBinding binding) {
-    return binding.getDeclaringClass().isInterface()
+    return Types.isInterface(binding.getDeclaringClass())
         && !Modifier.isAbstract(binding.getModifiers());
   }
 
@@ -145,7 +145,7 @@ public abstract class ObjectiveCSourceFileGenerator extends SourceFileGenerator 
       baseDeclaration = "- (NSUInteger)hash";
     } else {
       baseDeclaration = String.format("%c (%s)%s", isStatic ? '+' : '-',
-          NameTable.javaRefToObjC(method.getReturnType2()), mappedMethod.getName());
+          method.isConstructor() ? "id" : NameTable.javaRefToObjC(method.getReturnType2()), mappedMethod.getName());
     }
 
     sb.append(baseDeclaration);

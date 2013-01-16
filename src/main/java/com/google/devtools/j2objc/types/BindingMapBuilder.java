@@ -16,8 +16,7 @@
 
 package com.google.devtools.j2objc.types;
 
-import com.google.common.collect.Maps;
-import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
+import java.util.Map;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
@@ -70,7 +69,8 @@ import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
-import java.util.Map;
+import com.google.common.collect.Maps;
+import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
 
 /**
  * Walks an AST and copies resolved bindings to maps in {@link Types}.

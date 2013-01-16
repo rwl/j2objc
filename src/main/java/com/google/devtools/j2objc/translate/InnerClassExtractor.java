@@ -115,7 +115,7 @@ public class InnerClassExtractor extends ClassConverter {
     ASTNode parentNode = node.getParent();
     if (!(parentNode instanceof CompilationUnit)) {
       ITypeBinding type = Types.getTypeBinding(node);
-      if (!type.isInterface() && !type.isAnnotation() && !Modifier.isStatic(type.getModifiers())) {
+      if (!Types.isInterface(type) && !type.isAnnotation() && !Modifier.isStatic(type.getModifiers())) {
         addOuterFields(node);
       }
 

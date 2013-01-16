@@ -145,7 +145,7 @@ public class Rewriter extends ErrorReportingASTVisitor {
           }
           addMissingMethods(ast, typeBinding, interfaceMethods, members);
         }
-      } else if (!typeBinding.isInterface()) {
+      } else if (!Types.isInterface(typeBinding)) {
         // Check for methods that the type *explicitly implements* for cases
         // where a superclass provides the implementation.  For example, many
         // Java interfaces define equals(Object) to provide documentation, which
@@ -273,7 +273,7 @@ public class Rewriter extends ErrorReportingASTVisitor {
   public boolean visit(FieldDeclaration node) {
     int mods = node.getModifiers();
     ASTNode parent = node.getParent();
-    if (parent instanceof TypeDeclaration && ((TypeDeclaration) parent).isInterface()) {
+    if (parent instanceof TypeDeclaration && Types.isInterface((TypeDeclaration) parent)) {
       // Interface fields are implicitly static and final.
       mods |= Modifier.STATIC | Modifier.FINAL;
     }

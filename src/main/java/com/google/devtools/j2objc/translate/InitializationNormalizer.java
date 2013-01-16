@@ -106,7 +106,7 @@ public class InitializationNormalizer extends ErrorReportingASTVisitor {
           iterator.remove();
           break;
         case ASTNode.FIELD_DECLARATION:
-          addFieldInitializer(member, binding.isInterface(), initStatements, classInitStatements);
+          addFieldInitializer(member, Types.isInterface(binding), initStatements, classInitStatements);
           break;
       }
     }

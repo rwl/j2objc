@@ -123,7 +123,7 @@ public class ObjectiveCImplementationGenerator extends ObjectiveCSourceFileGener
     unit.accept(new ErrorReportingASTVisitor() {
       @Override
       public boolean visit(TypeDeclaration node) {
-        if (!node.isInterface()) {
+        if (!Types.isInterface(node)) {
           result[0] = true;  // always print concrete types
           return false;
         }
@@ -171,7 +171,7 @@ public class ObjectiveCImplementationGenerator extends ObjectiveCSourceFileGener
     syncLineNumbers(node.getName()); // avoid doc-comment
 
     fieldHiders = HiddenFieldDetector.getFieldNameConflicts(node);
-    if (node.isInterface()) {
+    if (Types.isInterface(node)) {
       printStaticInterface(node);
     } else {
       String typeName = NameTable.getFullName(node);

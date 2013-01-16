@@ -16,20 +16,12 @@
 
 package com.google.devtools.j2objc.gen;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
-import com.google.devtools.j2objc.J2ObjC;
-import com.google.devtools.j2objc.Options;
-import com.google.devtools.j2objc.types.HeaderImportCollector;
-import com.google.devtools.j2objc.types.IOSMethod;
-import com.google.devtools.j2objc.types.ImportCollector;
-import com.google.devtools.j2objc.types.Types;
-import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
-import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.util.UnicodeUtils;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -48,12 +40,20 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.google.devtools.j2objc.J2ObjC;
+import com.google.devtools.j2objc.Options;
+import com.google.devtools.j2objc.types.HeaderImportCollector;
+import com.google.devtools.j2objc.types.IOSMethod;
+import com.google.devtools.j2objc.types.ImportCollector;
+import com.google.devtools.j2objc.types.Types;
+import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
+import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.util.UnicodeUtils;
 
 /**
  * Generates Objective-C header files from compilation units.
@@ -103,13 +103,17 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
 
     printConstantDefines(node);
 
-    if (node.isInterface()) {
+    if (Types.isInterface(node)) {
       printf("@protocol %s", typeName);
     } else {
       printf("@interface %s : %s", typeName, superName);
     }
-    @SuppressWarnings("unchecked")
-    List<Type> interfaces = node.superInterfaceTypes(); // safe by definition
+    List<Type> interfaces;
+    if (Types.isInterface(node)) {
+      interfaces = node.superInterfaceTypes(); // safe by definition
+    } else {
+      interfaces = Lists.newArrayList(node.getSuperclassType());
+    }
     if (!interfaces.isEmpty()) {
       print(" < ");
       for (Iterator<Type> iterator = interfaces.iterator(); iterator.hasNext();) {
@@ -118,11 +122,11 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
           print(", ");
         }
       }
-      print(node.isInterface() ? ", NSObject >" : " >");
-    } else if (node.isInterface()) {
+      print(Types.isInterface(node) ? ", NSObject >" : " >");
+    } else if (Types.isInterface(node)) {
       print(" < NSObject >");
     }
-    if (node.isInterface()) {
+    if (Types.isInterface(node)) {
       newline();
     } else {
       println(" {");
@@ -134,7 +138,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
     printMethods(methods);
     println("@end");
 
-    if (node.isInterface()) {
+    if (Types.isInterface(node)) {
       printStaticInterface(typeName, methods);
     }
 
@@ -142,7 +146,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
     String pkg = binding.getPackage().getName();
     if (NameTable.hasPrefix(pkg) && binding.isTopLevel()) {
       String unprefixedName = NameTable.camelCaseQualifiedName(binding.getQualifiedName());
-      if (binding.isInterface()) {
+      if (Types.isInterface(binding)) {
         // Protocols can't be used in typedefs.
         printf("\n#define %s %s\n", unprefixedName, typeName);
       } else {
@@ -295,7 +299,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
     }
     for (ITypeBinding forward : forwards) {
       forwardStmts.add(
-          createForwardDeclaration(NameTable.getFullName(forward), forward.isInterface()));
+          createForwardDeclaration(NameTable.getFullName(forward), Types.isInterface(forward)));
     }
     if (!forwardStmts.isEmpty()) {
       for (String stmt : forwardStmts) {
