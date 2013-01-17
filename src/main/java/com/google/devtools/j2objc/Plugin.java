@@ -17,6 +17,7 @@
 package com.google.devtools.j2objc;
 
 import com.google.common.base.Preconditions;
+import com.google.devtools.j2objc.types.IOSTypeBinding;
 
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -73,8 +74,9 @@ public abstract class Plugin {
   /**
    * Initialize type map with classes that are explicitly mapped to an iOS
    * type.
+   * @param iosBindingMap
    */
-  public void initializeTypeMap(CompilationUnit unit, Map<ITypeBinding, ITypeBinding> typeMap) { }
+  public void initializeTypeMap(CompilationUnit unit, Map<ITypeBinding, ITypeBinding> typeMap, Map<String, IOSTypeBinding> iosBindingMap) { }
 
   public void populateSimpleTypeMap(CompilationUnit unit, Map<String, String> simpleTypeMap) { }
 

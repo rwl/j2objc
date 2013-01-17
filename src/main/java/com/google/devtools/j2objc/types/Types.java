@@ -223,7 +223,7 @@ public class Types {
     NSNumber.setMappedType(javaNumberType.getSuperclass());
 
     for (Plugin plugin : Options.getPlugins()) {
-      plugin.initializeTypeMap(unit, typeMap);
+      plugin.initializeTypeMap(unit, typeMap, iosBindingMap);
     }
   }
 
