@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -898,6 +899,33 @@ public class Types {
 
   public static boolean hasAutoreleasePool(Block block) {
     return instance.autoreleasePoolBlocks.contains(block);
+  }
+
+  public static boolean isWrapper(ITypeBinding binding) {
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals("jos.api.Register")) {
+        for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
+          if (pair.getName().equals("isWrapper") && ((Boolean) pair.getValue())) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  public static boolean isProtocol(ITypeBinding binding) {
+    if (binding == null) {
+      return false;
+    }
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals("jos.api.Model")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // JDT doesn't have any way to dynamically create a null literal binding.

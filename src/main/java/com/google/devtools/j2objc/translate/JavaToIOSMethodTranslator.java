@@ -46,6 +46,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
@@ -392,6 +393,59 @@ public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
               IMethodBinding newBinding = iosMethod.resolveBinding();
               Types.addBinding(node, newBinding);
               Types.addBinding(node.getName(), newBinding);
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  @Override
+  public boolean visit(SuperConstructorInvocation node) {
+    // translate any embedded method invocations
+    @SuppressWarnings("unchecked")
+    List<Expression> args = node.arguments(); // safe by definition
+    for (Expression e : args) {
+      e.accept(this);
+    }
+
+    IMethodBinding binding = Types.getMethodBinding(node);
+    JavaMethod md = getDescription(binding);
+    if (md != null) {
+      String key = md.getKey();
+      String value = methodMappings.get(key);
+      if (value == null) {
+        // Method has same name as a mapped method's, but it's ignored since
+        // it doesn't override it.
+        return super.visit(node);
+      }
+      IOSMethod iosMethod = new IOSMethod(value, binding, ast);
+//      node.setName(NameTable.unsafeSimpleName(iosMethod.getName(), ast));
+//      SimpleName name = node.getName();
+//      if (name.getIdentifier().equals(binding.getDeclaringClass().getName())
+//          || name.getIdentifier().equals(binding.getDeclaringClass().getQualifiedName())) {
+//        node.setName(NameTable.unsafeSimpleName(iosMethod.getDeclaringClass(), ast));
+//      }
+      Types.addMappedIOSMethod(binding, iosMethod);
+      IMethodBinding newBinding = iosMethod.resolveBinding();
+      //Types.addMappedInvocation(node, newBinding);
+      Types.addBinding(node, newBinding);
+      //Types.addBinding(name, newBinding);
+    } else {
+      // Not mapped, check if it overrides a mapped method.
+      for (IMethodBinding methodBinding : mappedMethods) {
+        if (binding.overrides(methodBinding)) {
+          JavaMethod desc = getDescription(methodBinding);
+          if (desc != null) {
+            String value = methodMappings.get(desc.getKey());
+            if (value != null) {
+              IOSMethod iosMethod = new IOSMethod(value, binding, ast);
+              //node.setName(NameTable.unsafeSimpleName(iosMethod.getName(), ast));
+              Types.addMappedIOSMethod(binding, iosMethod);
+              IMethodBinding newBinding = iosMethod.resolveBinding();
+              Types.addBinding(node, newBinding);
+              //Types.addBinding(node.getName(), newBinding);
             }
           }
         }

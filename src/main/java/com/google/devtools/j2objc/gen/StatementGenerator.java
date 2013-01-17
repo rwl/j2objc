@@ -1959,7 +1959,9 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   @SuppressWarnings("unchecked")
   @Override
   public boolean visit(SuperConstructorInvocation node) {
-    buffer.append("[super init");
+    buffer.append("[super ");
+    IOSMethod iosMethod = getIOSMethod(Types.getMethodBinding(node));
+    buffer.append(iosMethod != null ? iosMethod.getName() : "init");
     printArguments(Types.getMethodBinding(node), node.arguments());
     buffer.append(']');
     return false;

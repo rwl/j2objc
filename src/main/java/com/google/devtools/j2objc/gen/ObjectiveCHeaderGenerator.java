@@ -108,11 +108,13 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
     } else {
       printf("@interface %s : %s", typeName, superName);
     }
-    List<Type> interfaces;
+    List<Type> interfaces = Lists.newArrayList();
     if (Types.isInterface(node)) {
-      interfaces = node.superInterfaceTypes(); // safe by definition
-    } else {
-      interfaces = Lists.newArrayList(node.getSuperclassType());
+      @SuppressWarnings("unchecked")
+      List<Type> superInterfacesTypes = node.superInterfaceTypes(); // safe by definition
+      interfaces.addAll(superInterfacesTypes);
+    } else if (Types.isProtocol(node.getSuperclassType().resolveBinding())) {
+      interfaces.add(node.getSuperclassType());
     }
     if (!interfaces.isEmpty()) {
       print(" < ");
@@ -133,6 +135,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
       printInstanceVariables(node.getFields());
       println("}\n");
       printProperties(node.getFields());
+      printProtocolProperties(node.resolveBinding());
     }
     List<MethodDeclaration> methods = Lists.newArrayList(node.getMethods());
     printMethods(methods);
@@ -509,6 +512,51 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
       }
     }
     unindent();
+  }
+
+  private void printProtocolProperties(ITypeBinding typeBinding) {
+    if (typeBinding == null) {
+      return;
+    }
+    if (Types.isProtocol(typeBinding)) {
+      printProperties(typeBinding.getDeclaredFields());
+    }
+    printProtocolProperties(typeBinding.getSuperclass());
+  }
+
+  private void printProperties(IVariableBinding[] vars) {
+    int nPrinted = 0;
+    for (IVariableBinding var : vars) {
+      if ((var.getModifiers() & Modifier.STATIC) == 0) {
+        ITypeBinding type = var.getType();
+        print("@property (nonatomic, ");
+        if (type.isPrimitive()) {
+          print("assign");
+        } else if (Types.isWeakReference(var)) {
+          print(Options.useARC() ? "weak" : "assign");
+        } else if (type.isEqualTo(Types.getNSString())) {
+          print("copy");
+        } else {
+          print(Options.useARC() ? "strong" : "retain");
+        }
+        String typeString = NameTable.javaRefToObjC(type);
+        if (!typeString.endsWith("*")) {
+          typeString += " ";
+        }
+        String propertyName = NameTable.getName(var);
+        println(String.format(") %s%s;", typeString, propertyName));
+        if (propertyName.startsWith("new") || propertyName.startsWith("copy")
+            || propertyName.startsWith("alloc") || propertyName.startsWith("init")) {
+          println(String.format("- (%s)%s OBJC_METHOD_FAMILY_NONE;",
+              NameTable.javaRefToObjC(type), propertyName));
+        }
+
+        nPrinted++;
+      }
+    }
+    if (nPrinted > 0) {
+      newline();
+    }
   }
 
   private void printProperties(FieldDeclaration[] fields) {
