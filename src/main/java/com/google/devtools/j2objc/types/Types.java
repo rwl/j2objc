@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.Options;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
 import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
 import com.google.j2objc.annotations.AutoreleasePool;
 import com.google.j2objc.annotations.Model;
@@ -116,6 +117,7 @@ public class Types {
   public IOSArrayTypeBinding IOSShortArray;
 
   private final Map<String, IOSTypeBinding> iosBindingMap = Maps.newHashMap();
+  private final Map<String, String> iosHeaderMap = Maps.newHashMap();
 
   private final Map<ITypeBinding, String> primitiveTypeNameMap = Maps.newHashMap();
 
@@ -166,6 +168,7 @@ public class Types {
       IOSTypeBinding iosType = entry.getValue();
       iosBindingMap.put(iosType.getName(), iosType);
     }
+    iosHeaderMap.putAll(HeaderMapBuilder.buildMap(unit));
   }
 
   private void initializeBaseClasses() {
@@ -606,6 +609,14 @@ public class Types {
 
   public static IOSTypeBinding resolveIOSType(String name) {
     return instance.iosBindingMap.get(name);
+  }
+
+  public static String resolveIOSHeader(String name) {
+    return instance.iosHeaderMap.get(name);
+  }
+
+  public static boolean hasIOSHeader(String name) {
+    return instance.iosHeaderMap.containsKey(name);
   }
 
   public static boolean isJavaObjectType(ITypeBinding type) {

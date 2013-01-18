@@ -188,9 +188,12 @@ public class ImportCollector extends ErrorReportingASTVisitor {
     }
 
     public String getImportFileName() {
+      if (Types.hasIOSHeader(typeName)) {
+        return Types.resolveIOSHeader(typeName);
+      }
       // Always use JRE and JUnit package directories, since the j2objc
       // distribution is (currently) built with package directories.
-      if (Options.usePackageDirectories() || javaFileName.startsWith("java") ||
+      else if (Options.usePackageDirectories() || javaFileName.startsWith("java") ||
           javaFileName.startsWith("junit")) {
         return javaFileName.replace('.', '/');
       }
