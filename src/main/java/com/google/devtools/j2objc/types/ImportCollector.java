@@ -189,12 +189,16 @@ public class ImportCollector extends ErrorReportingASTVisitor {
 
     public String getImportFileName() {
       if (Types.hasIOSHeader(typeName)) {
-        return Types.resolveIOSHeader(typeName);
-      }
-      // Always use JRE and JUnit package directories, since the j2objc
-      // distribution is (currently) built with package directories.
-      else if (Options.usePackageDirectories() || javaFileName.startsWith("java") ||
+        String header = Types.resolveIOSHeader(typeName);
+        if (header.endsWith(".h")) {
+          header = header.substring(0, header.lastIndexOf('.'));
+        }
+        return header;
+      } else if (Options.usePackageDirectories() ||
+          javaFileName.startsWith("java") ||
           javaFileName.startsWith("junit")) {
+        // Always use JRE and JUnit package directories, since the j2objc
+        // distribution is (currently) built with package directories.
         return javaFileName.replace('.', '/');
       }
       return javaFileName.substring(javaFileName.lastIndexOf('.') + 1);

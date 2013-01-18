@@ -9,4 +9,6 @@ public @interface Register {
   String name() default "";
 
   boolean isWrapper() default false;
+
+  String header() default "";
 }

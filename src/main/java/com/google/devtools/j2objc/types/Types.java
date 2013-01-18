@@ -691,6 +691,18 @@ public class Types {
     return null;
   }
 
+  public static ITypeBinding getTypeBinding(IBinding binding) {
+    if (binding instanceof ITypeBinding) {
+      return (ITypeBinding) binding;
+    } else if (binding instanceof IMethodBinding) {
+      IMethodBinding m = (IMethodBinding) binding;
+      return m.isConstructor() ? m.getDeclaringClass() : m.getReturnType();
+    } else if (binding instanceof IVariableBinding) {
+      return ((IVariableBinding) binding).getType();
+    }
+    return null;
+  }
+
   public static IMethodBinding getMethodBinding(Object node) {
     IBinding binding = getBinding(node);
     return binding instanceof IMethodBinding ? ((IMethodBinding) binding) : null;
