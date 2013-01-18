@@ -514,6 +514,11 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
     unindent();
   }
 
+  /**
+   * Adds a property to the header for all fields declared in protocol
+   * wrappers. Relies upon dead code elimination to avoid adding fields
+   * that are not used.
+   */
   private void printProtocolProperties(ITypeBinding typeBinding) {
     if (typeBinding == null) {
       return;

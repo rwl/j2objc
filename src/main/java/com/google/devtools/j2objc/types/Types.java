@@ -21,9 +21,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.Options;
-import com.google.devtools.j2objc.Plugin;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
 import com.google.j2objc.annotations.AutoreleasePool;
+import com.google.j2objc.annotations.Model;
+import com.google.j2objc.annotations.Register;
 import com.google.j2objc.annotations.Weak;
 import com.google.j2objc.annotations.WeakOuter;
 
@@ -55,6 +57,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
 /*
  * Types is a singleton service class for type-related operations.
@@ -133,6 +136,7 @@ public class Types {
   private Types(CompilationUnit compilationUnit) {
     unit = compilationUnit;
     ast = compilationUnit.getAST();
+    initializeWrapperMappings();
     initializeBaseClasses();
     javaObjectType = ast.resolveWellKnownType("java.lang.Object");
     javaClassType = ast.resolveWellKnownType("java.lang.Class");
@@ -153,6 +157,15 @@ public class Types {
     populatePrimitiveAndWrapperTypeMaps();
     bindingMap = BindingMapBuilder.buildBindingMap(compilationUnit);
     setGlobalRenamings();
+  }
+
+  private void initializeWrapperMappings() {
+    Map<ITypeBinding, IOSTypeBinding> map = TypeMapBuilder.buildMap(unit);
+    typeMap.putAll(map);
+    for (Entry<ITypeBinding, IOSTypeBinding> entry : map.entrySet()) {
+      IOSTypeBinding iosType = entry.getValue();
+      iosBindingMap.put(iosType.getName(), iosType);
+    }
   }
 
   private void initializeBaseClasses() {
@@ -221,10 +234,6 @@ public class Types {
     // Number isn't a well-known type, but its subclasses are.
     typeMap.put(javaNumberType, NSNumber);
     NSNumber.setMappedType(javaNumberType.getSuperclass());
-
-    for (Plugin plugin : Options.getPlugins()) {
-      plugin.initializeTypeMap(unit, typeMap, iosBindingMap);
-    }
   }
 
   private void populateSimpleTypeMap() {
@@ -232,10 +241,6 @@ public class Types {
     simpleTypeMap.put("JavaLangString", "NSString");
     simpleTypeMap.put("JavaLangNumber", "NSNumber");
     simpleTypeMap.put("JavaLangCloneable", "NSCopying");
-
-    for (Plugin plugin : Options.getPlugins()) {
-      plugin.populateSimpleTypeMap(unit, simpleTypeMap);
-    }
   }
 
   private void populateArrayTypeMaps() {
@@ -436,7 +441,7 @@ public class Types {
       return true;
     }
     for (IAnnotationBinding anno : typeBinding.getAnnotations()) {
-      if (anno.getAnnotationType().getQualifiedName().equals("jos.api.Model")) {
+      if (anno.getAnnotationType().getQualifiedName().equals(Model.class.getName())) {
         return true;
       }
     }
@@ -904,7 +909,7 @@ public class Types {
   public static boolean isWrapper(ITypeBinding binding) {
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();
-      if (name.equals("jos.api.Register")) {
+      if (name.equals(Register.class.getName())) {
         for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
           if (pair.getName().equals("isWrapper") && ((Boolean) pair.getValue())) {
             return true;
@@ -921,7 +926,7 @@ public class Types {
     }
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();
-      if (name.equals("jos.api.Model")) {
+      if (name.equals(Model.class.getName())) {
         return true;
       }
     }

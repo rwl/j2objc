@@ -16,18 +16,14 @@
 
 package com.google.devtools.j2objc;
 
-import com.google.common.base.Preconditions;
-import com.google.devtools.j2objc.types.IOSTypeBinding;
-
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.ITypeBinding;
-
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+
+import org.eclipse.jdt.core.dom.CompilationUnit;
+
+import com.google.common.base.Preconditions;
 
 /**
  * A plugin invoked to do custom processing not part of J2ObjC.
@@ -70,19 +66,6 @@ public abstract class Plugin {
    * getOption. Subclasses may override this to process any needed options.
    */
   protected void beginProcessing() throws IOException { }
-
-  /**
-   * Initialize type map with classes that are explicitly mapped to an iOS
-   * type.
-   * @param iosBindingMap
-   */
-  public void initializeTypeMap(CompilationUnit unit, Map<ITypeBinding, ITypeBinding> typeMap, Map<String, IOSTypeBinding> iosBindingMap) { }
-
-  public void populateSimpleTypeMap(CompilationUnit unit, Map<String, String> simpleTypeMap) { }
-
-  public void mapMethods(CompilationUnit unit, Map<String, String> methodMappings) { }
-
-  public List<ITypeBinding> getWrapperBindings(CompilationUnit unit) { return null; }
 
   /**
    * Called to process the given CompilationUnit after J2ObjC has processed

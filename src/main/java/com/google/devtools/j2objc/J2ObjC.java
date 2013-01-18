@@ -16,41 +16,6 @@
 
 package com.google.devtools.j2objc;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.io.CharStreams;
-import com.google.common.io.Files;
-import com.google.devtools.j2objc.gen.ObjectiveCHeaderGenerator;
-import com.google.devtools.j2objc.gen.ObjectiveCImplementationGenerator;
-import com.google.devtools.j2objc.sym.Symbols;
-import com.google.devtools.j2objc.translate.AnonymousClassConverter;
-import com.google.devtools.j2objc.translate.Autoboxer;
-import com.google.devtools.j2objc.translate.DeadCodeEliminator;
-import com.google.devtools.j2objc.translate.DestructorGenerator;
-import com.google.devtools.j2objc.translate.GwtConverter;
-import com.google.devtools.j2objc.translate.InitializationNormalizer;
-import com.google.devtools.j2objc.translate.InnerClassExtractor;
-import com.google.devtools.j2objc.translate.JavaToIOSMethodTranslator;
-import com.google.devtools.j2objc.translate.JavaToIOSTypeConverter;
-import com.google.devtools.j2objc.translate.Rewriter;
-import com.google.devtools.j2objc.types.Types;
-import com.google.devtools.j2objc.util.ASTNodeException;
-import com.google.devtools.j2objc.util.DeadCodeMap;
-import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.util.ProGuardUsageParser;
-
-import org.eclipse.jdt.core.compiler.IProblem;
-import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.ASTParser;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.ITypeBinding;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.Document;
-import org.eclipse.text.edits.MalformedTreeException;
-import org.eclipse.text.edits.TextEdit;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -77,6 +42,40 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
+
+import org.eclipse.jdt.core.compiler.IProblem;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.Document;
+import org.eclipse.text.edits.MalformedTreeException;
+import org.eclipse.text.edits.TextEdit;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.google.common.io.CharStreams;
+import com.google.common.io.Files;
+import com.google.devtools.j2objc.gen.ObjectiveCHeaderGenerator;
+import com.google.devtools.j2objc.gen.ObjectiveCImplementationGenerator;
+import com.google.devtools.j2objc.sym.Symbols;
+import com.google.devtools.j2objc.translate.AnonymousClassConverter;
+import com.google.devtools.j2objc.translate.Autoboxer;
+import com.google.devtools.j2objc.translate.DeadCodeEliminator;
+import com.google.devtools.j2objc.translate.DestructorGenerator;
+import com.google.devtools.j2objc.translate.GwtConverter;
+import com.google.devtools.j2objc.translate.InitializationNormalizer;
+import com.google.devtools.j2objc.translate.InnerClassExtractor;
+import com.google.devtools.j2objc.translate.JavaToIOSMethodTranslator;
+import com.google.devtools.j2objc.translate.JavaToIOSTypeConverter;
+import com.google.devtools.j2objc.translate.Rewriter;
+import com.google.devtools.j2objc.types.Types;
+import com.google.devtools.j2objc.util.ASTNodeException;
+import com.google.devtools.j2objc.util.DeadCodeMap;
+import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.util.ProGuardUsageParser;
 
 /**
  * Translation tool for generating Objective C source files from Java sources.
@@ -365,14 +364,7 @@ public class J2ObjC {
       // Method maps are loaded here so tests can call translate() directly.
       loadMappingFiles();
     }
-    for (Plugin plugin : Options.getPlugins()) {
-      plugin.mapMethods(unit, Options.getMethodMappings());
-    }
-    List<ITypeBinding> wrapperBindings = Lists.newArrayList();
-    for (Plugin plugin : Options.getPlugins()) {
-      wrapperBindings.addAll(plugin.getWrapperBindings(unit));
-    }
-    new JavaToIOSMethodTranslator(unit.getAST(), methodMappings, wrapperBindings).run(unit);
+    new JavaToIOSMethodTranslator(unit, methodMappings).run(unit);
 
     // Add dealloc/finalize method(s), if necessary.  This is done
     // after inner class extraction, so that each class releases

@@ -29,11 +29,14 @@ import com.google.devtools.j2objc.types.NodeCopier;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
+import com.google.devtools.j2objc.wrapper.WrapperListBuilder;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -64,26 +67,37 @@ import java.util.Map;
  * @author Tom Ball
  */
 public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
+  private CompilationUnit unit;
   private AST ast;
   private Map<IMethodBinding, JavaMethod> descriptions = Maps.newLinkedHashMap();
   private List<IMethodBinding> overridableMethods = Lists.newArrayList();
   private List<IMethodBinding> mappedMethods = Lists.newArrayList();
   private final ITypeBinding javaLangCloneable;
 
-  private final Map<String, String> methodMappings;
+  private final Map<String, String> methodMappings = Maps.newHashMap();
 
-  public JavaToIOSMethodTranslator(AST ast, Map<String, String> methodMappings, List<ITypeBinding> wrapperBindings) {
-    this.ast = ast;
-    this.methodMappings = methodMappings;
-    for (ITypeBinding typeBinding : wrapperBindings) {
-      loadTargetMethods(typeBinding);
-    }
+  public JavaToIOSMethodTranslator(CompilationUnit unit, Map<String, String> methodMappings) {
+    this.unit = unit;
+    this.ast = unit.getAST();
+    initializeWrapperMethodBindings();
+    this.methodMappings.putAll(methodMappings);
+    initializeWrapperTypeBindings();
     loadTargetMethods(ast.resolveWellKnownType("java.lang.Object"));
     loadTargetMethods(ast.resolveWellKnownType("java.lang.Class"));
     ITypeBinding javaLangString = ast.resolveWellKnownType("java.lang.String");
     loadTargetMethods(javaLangString);
     loadCharSequenceMethods(javaLangString);
     javaLangCloneable = ast.resolveWellKnownType("java.lang.Cloneable");
+  }
+
+  private void initializeWrapperMethodBindings() {
+    methodMappings.putAll(MethodMapBuilder.buildMap(unit));
+  }
+
+  private void initializeWrapperTypeBindings() {
+    for (ITypeBinding typeBinding : WrapperListBuilder.buildList(unit)) {
+      loadTargetMethods(typeBinding);
+    }
   }
 
   private void loadTargetMethods(ITypeBinding clazz) {
