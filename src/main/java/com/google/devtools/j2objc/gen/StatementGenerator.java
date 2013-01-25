@@ -1700,6 +1700,11 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
 
   private void printStaticVarReference(ASTNode expression) {
     IVariableBinding var = Types.getVariableBinding(expression);
+    ITypeBinding typeBinding = Types.getTypeBinding(var);
+    if (typeBinding.isEnum() && Types.isWrapper(typeBinding)) {
+      buffer.append(NameTable.getName(var));
+      return;
+    }
     AbstractTypeDeclaration owner = getOwningType(expression);
     ITypeBinding owningType = owner != null ?
         Types.getTypeBinding(owner).getTypeDeclaration() : null;
@@ -1715,7 +1720,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     if (isPublic) {
       if (!var.isEnumConstant()) {
         // use accessor name instead of var name
-        name = NameTable.getStaticAccessorName(var.getName());
+        name = NameTable.getStaticAccessorName(name);
       }
     } else if (var.isEnumConstant()) {
       buffer.append(NameTable.javaTypeToObjC(var.getDeclaringClass(), false));

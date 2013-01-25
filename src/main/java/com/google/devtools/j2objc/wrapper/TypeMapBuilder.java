@@ -49,7 +49,10 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
           .equals(Register.class.getName())) {
         if (Types.isInterface(typeBinding)) {
           bindingMap.put(typeBinding, new IOSTypeBinding(typeBinding.getName(),
-            true));
+              true));
+        } else if (typeBinding.isEnum()) {
+          bindingMap.put(typeBinding, new IOSTypeBinding(typeBinding.getName(),
+              false));
         } else {
           bindingMap.put(typeBinding, new IOSTypeBinding(typeBinding.getName(),
               NSObject));  // FIXME

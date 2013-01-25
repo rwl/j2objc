@@ -76,6 +76,7 @@ import com.google.devtools.j2objc.util.ASTNodeException;
 import com.google.devtools.j2objc.util.DeadCodeMap;
 import com.google.devtools.j2objc.util.NameTable;
 import com.google.devtools.j2objc.util.ProGuardUsageParser;
+import com.google.devtools.j2objc.wrapper.Renamer;
 
 /**
  * Translation tool for generating Objective C source files from Java sources.
@@ -346,6 +347,8 @@ public class J2ObjC {
 
     // Modify AST to be more compatible with Objective C
     new Rewriter().run(unit);
+
+    new Renamer().run(unit);
 
     // Add auto-boxing conversions.
     new Autoboxer(unit.getAST()).run(unit);

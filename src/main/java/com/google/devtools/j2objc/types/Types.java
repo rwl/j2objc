@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.Options;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.wrapper.FunctionListBuilder;
 import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
 import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
 import com.google.j2objc.annotations.AutoreleasePool;
@@ -162,12 +163,15 @@ public class Types {
   }
 
   private void initializeWrapperMappings() {
+    functions.addAll(FunctionListBuilder.buildList(unit));
+
     Map<ITypeBinding, IOSTypeBinding> map = TypeMapBuilder.buildMap(unit);
     typeMap.putAll(map);
     for (Entry<ITypeBinding, IOSTypeBinding> entry : map.entrySet()) {
       IOSTypeBinding iosType = entry.getValue();
       iosBindingMap.put(iosType.getName(), iosType);
     }
+
     iosHeaderMap.putAll(HeaderMapBuilder.buildMap(unit));
   }
 
