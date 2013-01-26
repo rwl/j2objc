@@ -444,6 +444,9 @@ public class Types {
   }
 
   public static boolean isInterface(ITypeBinding typeBinding) {
+    if (typeBinding == null) {
+      return false;
+    }
     if (typeBinding.isInterface()) {
       return true;
     }
