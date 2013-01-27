@@ -1,4 +1,6 @@
 /build_result/
+/dist/
+/jre_emul/build_result/
 
 .classpath
 .project
