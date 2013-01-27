@@ -109,12 +109,12 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
       printf("@interface %s : %s", typeName, superName);
     }
     List<Type> interfaces = Lists.newArrayList();
-    if (Types.isInterface(node)) {
+    if (Types.isProtocol(node.getSuperclassType().resolveBinding())) {
+      interfaces.add(node.getSuperclassType());
+    } else {
       @SuppressWarnings("unchecked")
       List<Type> superInterfacesTypes = node.superInterfaceTypes(); // safe by definition
       interfaces.addAll(superInterfacesTypes);
-    } else if (Types.isProtocol(node.getSuperclassType().resolveBinding())) {
-      interfaces.add(node.getSuperclassType());
     }
     if (!interfaces.isEmpty()) {
       print(" < ");

@@ -436,25 +436,6 @@ public class Types {
         binding.getConstantValue() != null;
   }
 
-  public static boolean isInterface(TypeDeclaration node) {
-    if (node.isInterface()) {
-      return true;
-    }
-    return isInterface(node.resolveBinding());
-  }
-
-  public static boolean isInterface(ITypeBinding typeBinding) {
-    if (typeBinding.isInterface()) {
-      return true;
-    }
-    for (IAnnotationBinding anno : typeBinding.getAnnotations()) {
-      if (anno.getAnnotationType().getQualifiedName().equals(Model.class.getName())) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   /**
    * Initialize this service using the AST returned by the parser.
    */
@@ -942,6 +923,25 @@ public class Types {
             return true;
           }
         }
+      }
+    }
+    return false;
+  }
+
+  public static boolean isInterface(TypeDeclaration node) {
+    if (node.isInterface()) {
+      return true;
+    }
+    return isInterface(node.resolveBinding());
+  }
+
+  public static boolean isInterface(ITypeBinding typeBinding) {
+    if (typeBinding.isInterface()) {
+      return true;
+    }
+    for (IAnnotationBinding anno : typeBinding.getAnnotations()) {
+      if (anno.getAnnotationType().getQualifiedName().equals(Model.class.getName())) {
+        return true;
       }
     }
     return false;
