@@ -27,14 +27,16 @@ public class Renamer extends ErrorReportingASTVisitor {
   @Override
   public boolean visit(QualifiedName node) {
     IBinding binding = node.resolveBinding();
-    for (IAnnotationBinding annotation : binding.getAnnotations()) {
-      if (annotation.getAnnotationType().getQualifiedName().equals(Bind.class.getName())) {
-        for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
-          if (pair.getName().equals("value")) {
-            String value = (String) pair.getValue();
-            if (!value.isEmpty()) {
-              SimpleName name = node.getName();
-              NameTable.rename(name, value);
+    if (binding != null) {
+      for (IAnnotationBinding annotation : binding.getAnnotations()) {
+        if (annotation.getAnnotationType().getQualifiedName().equals(Bind.class.getName())) {
+          for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
+            if (pair.getName().equals("value")) {
+              String value = (String) pair.getValue();
+              if (!value.isEmpty()) {
+                SimpleName name = node.getName();
+                NameTable.rename(name, value);
+              }
             }
           }
         }
