@@ -1720,7 +1720,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     if (isPublic) {
       if (!var.isEnumConstant()) {
         // use accessor name instead of var name
-        name = NameTable.getStaticAccessorName(name);
+        name = NameTable.getStaticAccessorName(var.getName());
       }
     } else if (var.isEnumConstant()) {
       buffer.append(NameTable.javaTypeToObjC(var.getDeclaringClass(), false));
