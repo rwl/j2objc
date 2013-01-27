@@ -298,14 +298,14 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
     // Print forward declarations.
     Set<String> forwardStmts = Sets.newTreeSet();
     for (ImportCollector.Import imp : imports) {
-      if (Types.resolveIOSType(imp.getTypeName()) == null) {
+      //if (Types.resolveIOSType(imp.getTypeName()) == null) {
         forwardStmts.add(createForwardDeclaration(imp.getTypeName(), imp.isInterface()));
-      }
+      //}
     }
     for (ITypeBinding forward : forwards) {
-      if (!Types.hasIOSEquivalent(forward)) {
+      //if (!Types.hasIOSEquivalent(forward)) {
         forwardStmts.add(createForwardDeclaration(NameTable.getFullName(forward), Types.isInterface(forward)));
-      }
+      //}
     }
     if (!forwardStmts.isEmpty()) {
       for (String stmt : forwardStmts) {
