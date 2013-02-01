@@ -44,6 +44,7 @@ JRE_NIO_TEST_ROOT = $(APACHE_HARMONY_BASE)/nio/src/test/java/common
 TEST_SUPPORT_ROOT = $(APACHE_HARMONY_BASE)/../support/src/test/java
 MATH_TEST_SUPPORT_ROOT = $(APACHE_HARMONY_BASE)/math/src/test/java/tests/api
 REGEX_TEST_ROOT = $(APACHE_HARMONY_BASE)/regex/src/test/java
+J2OBJC_SRC_ROOT = $(CWD)/../src/main/java
 
 ANDROID_BASE = $(CWD)/android/libcore
 ANDROID_JRE_ROOT = $(ANDROID_BASE)/luni/src/main/java
@@ -63,8 +64,10 @@ INCLUDE_DIR = $(BUILD_DIR)/include
 TESTS_DIR = $(BUILD_DIR)/tests
 STUBS_DIR = $(CWD)/stub_classes
 
-JRE_SRC = $(JRE_ROOT):$(JRE_ANNOTATION_ROOT):$(JRE_CONCURRENT_ROOT):$(JRE_KERNEL_ROOT):$(JRE_MATH_ROOT):$(JRE_NIO_ROOT):$(ANDROID_JRE_ROOT):$(EMULATION_CLASS_DIR)
-JRE_SRC_ROOTS = $(subst :, ,$(JRE_SRC)) $(STUBS_DIR)
+JRE_SRC_ROOTS = $(JRE_ROOT) $(JRE_ANNOTATION_ROOT) $(JRE_CONCURRENT_ROOT) $(JRE_KERNEL_ROOT) \
+    $(JRE_MATH_ROOT) $(JRE_NIO_ROOT) $(ANDROID_JRE_ROOT) $(EMULATION_CLASS_DIR) $(J2OBJC_SRC_ROOT) \
+    $(STUBS_DIR)
+JRE_SRC = $(subst $(eval) ,:,$(JRE_SRC_ROOTS))
 TEST_SRC = $(JRE_TEST_ROOT):$(JRE_MATH_TEST_ROOT):$(JRE_NIO_TEST_ROOT):$(TEST_SUPPORT_ROOT):$(MATH_TEST_SUPPORT_ROOT):$(REGEX_TEST_ROOT):$(MISC_TEST_ROOT)
 vpath %.java $(JRE_SRC) $(TEST_SRC)
 
@@ -102,7 +105,8 @@ OBJCFLAGS := -ObjC $(WARNINGS) $(SDK_FLAGS) $(ALT_SDK_FLAGS) \
 
 ifdef CLANG_ENABLE_OBJC_ARC
 J2OBJC := $(J2OBJC) -use-arc
-OBJCFLAGS := $(OBJCFLAGS) -fobjc-arc -fobjc-arc-exceptions
+OBJCFLAGS := $(OBJCFLAGS) -fobjc-arc -fobjc-arc-exceptions \
+  -Wno-unused-value -Wno-arc-bridge-casts-disallowed-in-nonarc
 endif
 
 # Flags for the static analyzer.

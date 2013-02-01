@@ -85,10 +85,10 @@
   for (int i = 0; i < [symbols count]; i++) {
     NSString *symbol = [symbols objectAtIndex:i];
     JavaLangStackTraceElement *element =
-        [[[JavaLangStackTraceElement alloc] initWithNSString:nil
-                                                withNSString:symbol
-                                                withNSString:nil
-                                                     withInt:-1] autorelease];
+        AUTORELEASE([[JavaLangStackTraceElement alloc] initWithNSString:nil
+                                                           withNSString:symbol
+                                                           withNSString:nil
+                                                                withInt:-1]);
     [stackTrace replaceObjectAtIndex:i withObject:element];
   }
   return stackTrace;
@@ -115,7 +115,7 @@
 }
 
 - (JavaLangThrowable *)initCauseWithJavaLangThrowable:
-    (JavaLangThrowable *)causeArg {
+    (JavaLangThrowable *)causeArg OBJC_METHOD_FAMILY_NONE {
   if (self->cause != nil) {
     id exception = [[JavaLangIllegalStateException alloc]
                     initWithNSString:@"Can't overwrite cause"];
@@ -141,18 +141,28 @@
 }
 
 - (void)printStackTraceWithJavaIoPrintWriter:(JavaIoPrintWriter *)pw {
+  [pw printlnWithNSString:[self description]];
   NSUInteger nFrames = [stackTrace count];
   for (NSUInteger i = 0; i < nFrames; i++) {
     id trace = [stackTrace objectAtIndex:i];
     [pw printlnWithId:trace];
   }
+  if (self->cause) {
+    [pw printWithNSString:@"Caused by: "];
+    [self->cause printStackTraceWithJavaIoPrintWriter:pw];
+  }
 }
 
 - (void)printStackTraceWithJavaIoPrintStream:(JavaIoPrintStream *)ps {
+  [ps printlnWithNSString:[self description]];
   NSUInteger nFrames = [stackTrace count];
   for (NSUInteger i = 0; i < nFrames; i++) {
     id trace = [stackTrace objectAtIndex:i];
     [ps printlnWithId:trace];
+  }
+  if (self->cause) {
+    [ps printWithNSString:@"Caused by: "];
+    [self->cause printStackTraceWithJavaIoPrintStream:ps];
   }
 }
 
@@ -168,10 +178,12 @@
 - (NSString *)description {
   NSString *className = [[self class] description];
   NSString *msg = [self getMessage];
-  if (msg != nil) {
+  if (msg) {
     return [NSString stringWithFormat:@"%@: %@", className, msg];
-  }
-  else {
+  } else if (cause) {
+    return [NSString stringWithFormat:@"%@: %@",
+            className, [cause description]];
+  } else {
     return className;
   }
 }
