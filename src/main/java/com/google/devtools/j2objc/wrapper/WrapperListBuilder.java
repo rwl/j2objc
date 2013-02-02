@@ -6,6 +6,7 @@ import java.util.Set;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -62,7 +63,10 @@ public class WrapperListBuilder extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(MethodInvocation node) {
-    add(node.resolveMethodBinding().getDeclaringClass());
+    IMethodBinding methodBinding = node.resolveMethodBinding();
+    if (methodBinding != null) {
+      add(methodBinding.getDeclaringClass());
+    }
     return super.visit(node);
   }
 }

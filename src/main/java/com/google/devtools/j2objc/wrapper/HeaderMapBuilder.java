@@ -7,6 +7,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -83,7 +84,10 @@ public class HeaderMapBuilder extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(MethodInvocation node) {
-    put(node.resolveMethodBinding().getDeclaringClass());
+    IMethodBinding methodBinding = node.resolveMethodBinding();
+    if (methodBinding != null) {
+      put(methodBinding.getDeclaringClass());
+    }
     return super.visit(node);
   }
 

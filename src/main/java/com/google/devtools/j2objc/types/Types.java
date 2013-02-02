@@ -16,20 +16,14 @@
 
 package com.google.devtools.j2objc.types;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.devtools.j2objc.J2ObjC;
-import com.google.devtools.j2objc.Options;
-import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.wrapper.FunctionListBuilder;
-import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
-import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
-import com.google.j2objc.annotations.AutoreleasePool;
-import com.google.j2objc.annotations.Model;
-import com.google.j2objc.annotations.Register;
-import com.google.j2objc.annotations.Weak;
-import com.google.j2objc.annotations.WeakOuter;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.dom.AST;
@@ -52,14 +46,20 @@ import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.devtools.j2objc.J2ObjC;
+import com.google.devtools.j2objc.Options;
+import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.wrapper.FunctionListBuilder;
+import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
+import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
+import com.google.j2objc.annotations.AutoreleasePool;
+import com.google.j2objc.annotations.Model;
+import com.google.j2objc.annotations.Register;
+import com.google.j2objc.annotations.Weak;
+import com.google.j2objc.annotations.WeakOuter;
 
 /*
  * Types is a singleton service class for type-related operations.
@@ -921,6 +921,9 @@ public class Types {
   }
 
   public static boolean isWrapper(ITypeBinding binding) {
+    if (binding == null) {
+      return false;
+    }
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();
       if (name.equals(Register.class.getName())) {
