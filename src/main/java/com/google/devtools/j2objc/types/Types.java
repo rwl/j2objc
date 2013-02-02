@@ -119,6 +119,7 @@ public class Types {
 
   private final Map<String, IOSTypeBinding> iosBindingMap = Maps.newHashMap();
   private final Map<String, String> iosHeaderMap = Maps.newHashMap();
+  private final Map<IOSTypeBinding, ITypeBinding> reverseBindingMap = Maps.newHashMap();
 
   private final Map<ITypeBinding, String> primitiveTypeNameMap = Maps.newHashMap();
 
@@ -170,6 +171,7 @@ public class Types {
     for (Entry<ITypeBinding, IOSTypeBinding> entry : map.entrySet()) {
       IOSTypeBinding iosType = entry.getValue();
       iosBindingMap.put(iosType.getName(), iosType);
+      reverseBindingMap.put(iosType, entry.getKey());
     }
 
     iosHeaderMap.putAll(HeaderMapBuilder.buildMap(unit));
@@ -598,6 +600,10 @@ public class Types {
 
   public static String resolveIOSHeader(String name) {
     return instance.iosHeaderMap.get(name);
+  }
+
+  public static ITypeBinding resolveOriginalTypeBinding(IOSTypeBinding iosTypeBinding) {
+    return instance.reverseBindingMap.get(iosTypeBinding);
   }
 
   public static boolean hasIOSHeader(String name) {
