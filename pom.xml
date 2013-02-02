@@ -22,7 +22,7 @@
   <groupId>com.github.j2objc</groupId>
   <artifactId>j2objc</artifactId>
   <packaging>jar</packaging>
-  <version>0.5.7-SNAPSHOT</version>
+  <version>0.6.0-SNAPSHOT</version>
   <name>j2objc</name>
   <url>https://code.google.com/p/j2objc/</url>
 
