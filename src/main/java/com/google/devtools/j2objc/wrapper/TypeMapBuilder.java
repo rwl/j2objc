@@ -9,6 +9,7 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
@@ -92,6 +93,12 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
     for (ITypeBinding param : node.resolveBinding().getParameterTypes()) {
       put(param);
     }
+    return super.visit(node);
+  }
+
+  @Override
+  public boolean visit(MethodInvocation node) {
+    put(node.resolveMethodBinding().getDeclaringClass());
     return super.visit(node);
   }
 }

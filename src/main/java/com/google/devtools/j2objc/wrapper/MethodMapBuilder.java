@@ -20,6 +20,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
+import com.google.j2objc.annotations.Export;
 
 public class MethodMapBuilder extends ErrorReportingASTVisitor {
 
@@ -44,9 +45,11 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     }
     if (Types.isWrapper(typeBinding)) {
       for (IMethodBinding methodBinding : typeBinding.getDeclaredMethods()) {
-        String signature = getSignature(methodBinding);
-        String iosSignature = getIOSSignature(methodBinding);
-        bindingMap.put(signature, iosSignature);
+        if (!methodBinding.isConstructor()) {
+          String signature = getSignature(methodBinding);
+          String iosSignature = getIOSSignature(methodBinding);
+          bindingMap.put(signature, iosSignature);
+        }
       }
     }
     put(typeBinding.getSuperclass());
@@ -59,11 +62,11 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     return super.visit(node);
   }
 
-  @Override
+  /*@Override
   public boolean visit(ClassInstanceCreation node) {
     put(node.resolveTypeBinding());
     return super.visit(node);
-  }
+  }*/
 
   @Override
   public boolean visit(QualifiedName node) {
@@ -84,17 +87,26 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     return clazz + '.' + name + signature;
   }
 
-  private static String getIOSSignature(final IMethodBinding methodBinding) {
+  public static String getIOSSignature(final IMethodBinding methodBinding) {
+    String selector = getSelector(methodBinding);
+    if (selector == null) {
+      selector = methodBinding.getName() + Strings.repeat(": ", methodBinding
+          .getParameterTypes().length).trim();
+    }
+    return parameterizeSelector(selector, methodBinding);
+  }
+
+  public static String getSelector(final IMethodBinding methodBinding) {
     for (IAnnotationBinding anno : methodBinding.getAnnotations()) {
-      for (IMemberValuePairBinding pair : anno.getDeclaredMemberValuePairs()) {
-        if (pair.getName().equals("selector")) {
-          return parameterizeSelector((String) pair.getValue(), methodBinding);
+      if (anno.getAnnotationType().getQualifiedName().equals(Export.class.getName())) {
+        for (IMemberValuePairBinding pair : anno.getDeclaredMemberValuePairs()) {
+          if (pair.getName().equals("selector")) {
+            return (String) pair.getValue();
+          }
         }
       }
     }
-    final String selector = methodBinding.getName()
-        + Strings.repeat(": ", methodBinding.getParameterTypes().length).trim();
-    return parameterizeSelector(selector, methodBinding);
+    return null;
   }
 
   private static String parameterizeSelector(String selector,

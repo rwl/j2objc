@@ -32,6 +32,8 @@ import com.google.devtools.j2objc.util.ASTNodeException;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
 import com.google.devtools.j2objc.util.NameTable;
 import com.google.devtools.j2objc.util.UnicodeUtils;
+import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
+import com.google.j2objc.annotations.Export;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -226,6 +228,12 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
         String keyword = ObjectiveCSourceFileGenerator.parameterKeyword(typeName, parameter);
         if (index == 0) {
           keyword = NameTable.capitalize(keyword);
+        }
+        // FIXME: implement iOS constructor mapping
+        if (MethodMapBuilder.getSelector(method) != null) {
+          IOSMethod tmpIOSMethod = new IOSMethod(MethodMapBuilder.getIOSSignature(method),
+              method, method.getDeclaringClass(), null);
+          keyword = tmpIOSMethod.getParameters().get(index).getParameterName();
         }
         buffer.append(keyword);
       }
@@ -930,8 +938,12 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     ITypeBinding type = Types.getTypeBinding(node.getType());
     ITypeBinding outerType = type.getDeclaringClass();
     buffer.append(NameTable.getFullName(type));
-    buffer.append(" alloc] init");
+    buffer.append(" alloc] ");
     IMethodBinding method = Types.getMethodBinding(node);
+    // FIXME: implement iOS constructor mapping
+    if (MethodMapBuilder.getSelector(method) == null) {
+      buffer.append("init");
+    }
     List<Expression> arguments = node.arguments();
     if (node.getExpression() != null && type.isMember() && arguments.size() > 0 &&
         !Types.getTypeBinding(arguments.get(0)).isEqualTo(outerType)) {

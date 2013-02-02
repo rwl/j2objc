@@ -7,6 +7,7 @@ import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import com.google.common.collect.Lists;
@@ -56,6 +57,12 @@ public class WrapperListBuilder extends ErrorReportingASTVisitor {
   @Override
   public boolean visit(FieldAccess node) {
     add(Types.getTypeBinding(node.getName().resolveBinding()));
+    return super.visit(node);
+  }
+
+  @Override
+  public boolean visit(MethodInvocation node) {
+    add(node.resolveMethodBinding().getDeclaringClass());
     return super.visit(node);
   }
 }
