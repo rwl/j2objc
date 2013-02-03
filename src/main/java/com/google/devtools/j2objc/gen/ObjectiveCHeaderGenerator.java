@@ -49,6 +49,7 @@ import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.Options;
 import com.google.devtools.j2objc.types.HeaderImportCollector;
 import com.google.devtools.j2objc.types.IOSMethod;
+import com.google.devtools.j2objc.types.IOSTypeBinding;
 import com.google.devtools.j2objc.types.ImportCollector;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
@@ -110,7 +111,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
     }
     List<Type> interfaces = Lists.newArrayList();
     if (node.getSuperclassType() != null &&
-        Types.isProtocol(node.getSuperclassType().resolveBinding())) {
+        Types.isProtocol(Types.resolveOriginalTypeBinding((IOSTypeBinding) Types.resolveIOSType(node.getSuperclassType())))) {
       interfaces.add(node.getSuperclassType());
     } else {
       @SuppressWarnings("unchecked")

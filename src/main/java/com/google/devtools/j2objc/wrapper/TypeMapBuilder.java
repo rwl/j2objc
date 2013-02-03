@@ -7,6 +7,7 @@ import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
+import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -18,11 +19,12 @@ import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.types.IOSTypeBinding;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
+import com.google.j2objc.annotations.BaseType;
 import com.google.j2objc.annotations.Register;
 
 public class TypeMapBuilder extends ErrorReportingASTVisitor {
 
-  private final IOSTypeBinding NSObject = new IOSTypeBinding("NSObject",
+  private static final IOSTypeBinding NSObject = new IOSTypeBinding("NSObject",
       false);
 
   private final Map<ITypeBinding, IOSTypeBinding> bindingMap = Maps
@@ -56,7 +58,7 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
               false));
         } else {
           bindingMap.put(typeBinding, new IOSTypeBinding(typeBinding.getName(),
-              NSObject));  // FIXME
+              getSuperClass(typeBinding)));
         }
       }
     }
@@ -101,4 +103,19 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
     put(node.resolveMethodBinding().getDeclaringClass());
     return super.visit(node);
   }
+
+  private static ITypeBinding getSuperClass(ITypeBinding typeBinding) {
+    for (IAnnotationBinding annotation : typeBinding.getAnnotations()) {
+      if (annotation.getAnnotationType().getQualifiedName().equals(BaseType.class.getName())) {
+        for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
+          if (pair.getKey().equals("value")) {
+            Class<?> baseType = (Class<?>) pair.getValue();
+            return new IOSTypeBinding(baseType.getSimpleName(), false);
+          }
+        }
+      }
+    }
+    return NSObject;
+  }
+
 }

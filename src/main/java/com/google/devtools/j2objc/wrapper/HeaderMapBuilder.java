@@ -1,6 +1,7 @@
 package com.google.devtools.j2objc.wrapper;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -12,9 +13,12 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.QualifiedType;
+import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
 import com.google.j2objc.annotations.Register;
@@ -31,6 +35,8 @@ public class HeaderMapBuilder extends ErrorReportingASTVisitor {
 
   private final Map<String, String> bindingMap = Maps.newHashMap();
 
+  private final Set<ITypeBinding> mappedBindings = Sets.newHashSet();
+
   public static Map<String, String> buildMap(final CompilationUnit unit) {
     final HeaderMapBuilder builder = new HeaderMapBuilder();
     builder.run(unit);
@@ -38,8 +44,11 @@ public class HeaderMapBuilder extends ErrorReportingASTVisitor {
   }
 
   private void put(ITypeBinding typeBinding) {
-    if (typeBinding == null) {
+    if (typeBinding == null ||
+        mappedBindings.contains(typeBinding)) {
       return;
+    } else {
+      mappedBindings.add(typeBinding);
     }
     if (Types.isWrapper(typeBinding)) {
       String name = typeBinding.getName();
@@ -100,6 +109,18 @@ public class HeaderMapBuilder extends ErrorReportingASTVisitor {
   @Override
   public boolean visit(FieldAccess node) {
     put(Types.getTypeBinding(node.getName().resolveBinding()));
+    return super.visit(node);
+  }
+
+  @Override
+  public boolean visit(QualifiedType node) {
+    put(Types.getTypeBinding(node.resolveBinding()));
+    return super.visit(node);
+  }
+
+  @Override
+  public boolean visit(SimpleType node) {
+    put(Types.getTypeBinding(node.resolveBinding()));
     return super.visit(node);
   }
 }
