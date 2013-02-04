@@ -59,6 +59,7 @@ public class HeaderImportCollector extends ImportCollector {
 
   @Override
   public boolean visit(MethodDeclaration node) {
+    // TODO: skip implementations of wrapper methods
     addReference(node.getReturnType2());
     for (Iterator<?> iterator = node.parameters().iterator(); iterator.hasNext(); ) {
       Object o = iterator.next();

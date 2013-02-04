@@ -21,6 +21,7 @@ import com.google.devtools.j2objc.types.IOSMethod;
 import com.google.devtools.j2objc.types.IOSParameter;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
 
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
@@ -217,7 +218,10 @@ public abstract class ObjectiveCSourceFileGenerator extends SourceFileGenerator 
     assert m.isConstructor();
     StringBuffer sb = new StringBuffer();
     IMethodBinding binding = Types.getMethodBinding(m);
-    String baseDeclaration = "- (id)init";
+    String baseDeclaration = "- (id)";
+    //if (MethodMapBuilder.getSelector(binding) == null) {
+      baseDeclaration += "init";
+    //}
     if (isInner) {
       baseDeclaration += NameTable.getFullName(binding.getDeclaringClass());
     }

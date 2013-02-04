@@ -11,4 +11,7 @@ public @interface Register {
   boolean isWrapper() default false;
 
   String header() default "";
+
+  boolean isPrimitive() default false;
+
 }

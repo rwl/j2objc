@@ -157,7 +157,7 @@ public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
 
     // See if an overrideable superclass method has been mapped.
     for (IMethodBinding overridable : overridableMethods) {
-      if (!binding.isConstructor() &&
+      if (/*!binding.isConstructor() &&*/
           (binding.isEqualTo(overridable) || binding.overrides(overridable))) {
         JavaMethod md = getDescription(overridable);
         if (md == null) {
@@ -226,7 +226,8 @@ public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
 
     IMethodBinding binding = Types.getMethodBinding(node);
     JavaMethod md = descriptions.get(binding);
-    if (md != null) {
+    // FIXME: mapped ClassInstanceCreation
+    if (md != null && !Types.isWrapper(binding.getDeclaringClass())) {
       String key = md.getKey();
       String value = methodMappings.get(key);
       if (value != null) {

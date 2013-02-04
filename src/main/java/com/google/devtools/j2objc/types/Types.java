@@ -937,6 +937,23 @@ public class Types {
     return false;
   }
 
+  public static boolean isPrimitive(ITypeBinding binding) {
+    if (binding == null) {
+      return false;
+    }
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals(Register.class.getName())) {
+        for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
+          if (pair.getName().equals("isPrimitive") && ((Boolean) pair.getValue())) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   public static boolean isInterface(TypeDeclaration node) {
     if (node.isInterface()) {
       return true;

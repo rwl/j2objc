@@ -941,7 +941,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     buffer.append(" alloc] ");
     IMethodBinding method = Types.getMethodBinding(node);
     // FIXME: implement iOS constructor mapping
-    if (MethodMapBuilder.getSelector(method) == null) {
+    if (MethodMapBuilder.getSelector(Types.getOriginalMethodBinding(method)) == null) {
       buffer.append("init");
     }
     List<Expression> arguments = node.arguments();
@@ -1732,7 +1732,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     if (isPublic) {
       if (!var.isEnumConstant()) {
         // use accessor name instead of var name
-        name = NameTable.getStaticAccessorName(var.getName());
+        name = NameTable.getStaticAccessorName(NameTable.isRenamed(var) ? name : var.getName());
       }
     } else if (var.isEnumConstant()) {
       buffer.append(NameTable.javaTypeToObjC(var.getDeclaringClass(), false));
@@ -1977,10 +1977,12 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   @Override
   public boolean visit(SuperConstructorInvocation node) {
     buffer.append("[super ");
-    IOSMethod iosMethod = getIOSMethod(Types.getMethodBinding(node));
-    buffer.append(iosMethod != null ? iosMethod.getName() : "init");
+    IMethodBinding method = Types.getMethodBinding(node);
+    IOSMethod iosMethod = getIOSMethod(method);
+    // FIXME: implement iOS constructor mapping
+    buffer.append(iosMethod != null ? iosMethod.getName() : MethodMapBuilder.getSelector(method) == null ? "init" : "");
     printArguments(Types.getMethodBinding(node), node.arguments());
-    buffer.append(']');
+    buffer.append("];\n");
     return false;
   }
 

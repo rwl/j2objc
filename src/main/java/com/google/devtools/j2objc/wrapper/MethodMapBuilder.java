@@ -45,11 +45,11 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     }
     if (Types.isWrapper(typeBinding)) {
       for (IMethodBinding methodBinding : typeBinding.getDeclaredMethods()) {
-        if (!methodBinding.isConstructor()) {
+        //if (!methodBinding.isConstructor()) {
           String signature = getSignature(methodBinding);
           String iosSignature = getIOSSignature(methodBinding);
           bindingMap.put(signature, iosSignature);
-        }
+        //}
       }
     }
     put(typeBinding.getSuperclass());
@@ -115,7 +115,8 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     final List<String> segments = Lists.newArrayList(selector.split(":"));
     for (int i = 0; i < parameterTypes.length; i++) {
       String paramType = parameterTypes[i].getName();
-      String param = String.format(":(%s *)%s", paramType,
+      String param = String.format(":(%s%s)%s", paramType,
+          Types.isPrimitive(parameterTypes[i]) ? "" : " *",
           paramType.substring(0, 1).toLowerCase() + paramType.substring(1) + "_");
       if (i != parameterTypes.length - 1) {
         param += ' ';

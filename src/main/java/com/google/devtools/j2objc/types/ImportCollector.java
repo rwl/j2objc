@@ -110,12 +110,24 @@ public class ImportCollector extends ErrorReportingASTVisitor {
     addImport(getReference(binding));
   }
 
+  /**
+   * Don't import IOS types, other than the IOS array types,
+   * since they have header files.
+   */
+  private boolean importIOSTypeBinding(ITypeBinding binding) {
+    if (binding instanceof IOSArrayTypeBinding
+        || !(binding instanceof IOSTypeBinding)) {
+      return true;
+    }
+    ITypeBinding orig = Types.resolveOriginalTypeBinding((IOSTypeBinding) binding);
+    return Types.isWrapper(orig);
+  }
+
   protected Import getReference(ITypeBinding binding) {
     if (!binding.isTypeVariable() && !binding.isPrimitive() && !binding.isAnnotation()
         // Don't import IOS types, other than the IOS array types,
         // since they have header files.
-        && (binding instanceof IOSArrayTypeBinding
-            || !(binding instanceof IOSTypeBinding))) {
+        && (importIOSTypeBinding(binding))) {
       binding = Types.mapType(binding);
       String typeName = NameTable.getFullName(binding);
       boolean isInterface = Types.isInterface(binding);
