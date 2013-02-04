@@ -114,7 +114,7 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     final ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
     final List<String> segments = Lists.newArrayList(selector.split(":"));
     for (int i = 0; i < parameterTypes.length; i++) {
-      String paramType = parameterTypes[i].getName();
+      String paramType = Types.mapType(parameterTypes[i]).getName();
       String param = String.format(":(%s%s)%s", paramType,
           Types.isPrimitive(parameterTypes[i]) ? "" : " *",
           paramType.substring(0, 1).toLowerCase() + paramType.substring(1) + "_");

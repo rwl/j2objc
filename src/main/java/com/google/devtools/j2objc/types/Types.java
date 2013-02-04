@@ -140,7 +140,6 @@ public class Types {
   private Types(CompilationUnit compilationUnit) {
     unit = compilationUnit;
     ast = compilationUnit.getAST();
-    initializeWrapperMappings();
     initializeBaseClasses();
     javaObjectType = ast.resolveWellKnownType("java.lang.Object");
     javaClassType = ast.resolveWellKnownType("java.lang.Class");
@@ -161,17 +160,27 @@ public class Types {
     populatePrimitiveAndWrapperTypeMaps();
     bindingMap = BindingMapBuilder.buildBindingMap(compilationUnit);
     setGlobalRenamings();
+
+    initializeWrapperMappings();
   }
 
   private void initializeWrapperMappings() {
     functions.addAll(FunctionListBuilder.buildList(unit));
 
     Map<ITypeBinding, IOSTypeBinding> map = TypeMapBuilder.buildMap(unit);
-    typeMap.putAll(map);
     for (Entry<ITypeBinding, IOSTypeBinding> entry : map.entrySet()) {
+      ITypeBinding typeBinding = entry.getKey();
       IOSTypeBinding iosType = entry.getValue();
-      iosBindingMap.put(iosType.getName(), iosType);
-      reverseBindingMap.put(iosType, entry.getKey());
+
+      if (!typeMap.containsKey(typeBinding)) {
+        typeMap.put(typeBinding, iosType);
+      }
+      if (!iosBindingMap.containsKey(iosType.getName())) {
+        iosBindingMap.put(iosType.getName(), iosType);
+      }
+      if (!reverseBindingMap.containsKey(iosType)) {
+        reverseBindingMap.put(iosType, entry.getKey());
+      }
     }
 
     iosHeaderMap.putAll(HeaderMapBuilder.buildMap(unit));
