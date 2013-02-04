@@ -279,6 +279,16 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   @Override
+  protected String mappedConstructorDeclaration(MethodDeclaration method, IOSMethod mappedMethod) {
+    IMethodBinding declaration = method.resolveBinding().getMethodDeclaration();
+    if (Types.isWrapper(Types.getOriginalMethodBinding(declaration).getDeclaringClass())) {
+      return "";
+    } else {
+      return super.mappedConstructorDeclaration(method, mappedMethod) + ";\n";
+    }
+  }
+
+  @Override
   protected String constructorDeclaration(MethodDeclaration m) {
     return super.constructorDeclaration(m) + ";\n";
   }

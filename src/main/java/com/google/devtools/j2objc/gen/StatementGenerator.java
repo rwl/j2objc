@@ -940,10 +940,6 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     buffer.append(NameTable.getFullName(type));
     buffer.append(" alloc] ");
     IMethodBinding method = Types.getMethodBinding(node);
-    // FIXME: implement iOS constructor mapping
-    if (MethodMapBuilder.getSelector(Types.getOriginalMethodBinding(method)) == null) {
-      buffer.append("init");
-    }
     List<Expression> arguments = node.arguments();
     if (node.getExpression() != null && type.isMember() && arguments.size() > 0 &&
         !Types.getTypeBinding(arguments.get(0)).isEqualTo(outerType)) {
@@ -954,6 +950,11 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       method = newBinding;
       arguments = Lists.newArrayList(node.arguments());
       arguments.add(0, node.getExpression());
+    }
+    // FIXME: implement iOS constructor mapping
+    if (MethodMapBuilder.getSelector(Types.getOriginalMethodBinding(method)) == null
+        || arguments.size() == 0) {
+      buffer.append("init");
     }
     printArguments(method, arguments);
     buffer.append(']');
@@ -1982,7 +1983,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     // FIXME: implement iOS constructor mapping
     buffer.append(iosMethod != null ? iosMethod.getName() : MethodMapBuilder.getSelector(method) == null ? "init" : "");
     printArguments(Types.getMethodBinding(node), node.arguments());
-    buffer.append("];\n");
+    buffer.append(']');
     return false;
   }
 

@@ -91,7 +91,9 @@ public abstract class ObjectiveCSourceFileGenerator extends SourceFileGenerator 
       syncLineNumbers(m.getName());  // avoid doc-comment
       IMethodBinding binding = Types.getMethodBinding(m);
       IOSMethod iosMethod = Types.getMappedMethod(binding);
-      if (iosMethod != null) {
+      if (iosMethod != null && iosMethod.resolveBinding().isConstructor()) {
+        print(mappedConstructorDeclaration(m, iosMethod));
+      } else if (iosMethod != null) {
         print(mappedMethodDeclaration(m, iosMethod));
       } else if (m.isConstructor()) {
         print(constructorDeclaration(m));
@@ -203,6 +205,41 @@ public abstract class ObjectiveCSourceFileGenerator extends SourceFileGenerator 
       // and 5.2.2 (Related result types)
       // TODO(user,user): Rename method instead of using the attribute.
       sb.append(" OBJC_METHOD_FAMILY_NONE");
+    }
+    return sb.toString();
+  }
+
+  protected String mappedConstructorDeclaration(MethodDeclaration method, IOSMethod mappedMethod) {;
+    StringBuffer sb = new StringBuffer();
+    IMethodBinding binding = Types.getMethodBinding(method);
+    String baseDeclaration = "- (id)";
+    String selector = MethodMapBuilder.getSelector(Types.getOriginalMethodBinding(binding));
+    if (selector == null) {
+      baseDeclaration += "init";
+    } else {
+      if (selector.contains(":")) {
+        selector = selector.substring(0, selector.indexOf(':'));
+      }
+      baseDeclaration += selector;
+    }
+    sb.append(baseDeclaration);
+//    @SuppressWarnings("unchecked")
+//    List<SingleVariableDeclaration> params = m.parameters(); // safe by definition
+//    parametersDeclaration(binding, params, baseDeclaration, sb);
+    Iterator<IOSParameter> iosParameters = mappedMethod.getParameters().iterator();
+    if (iosParameters.hasNext()) {
+      @SuppressWarnings("unchecked")
+      List<SingleVariableDeclaration> parameters = method.parameters();
+      IOSParameter first = iosParameters.next();
+      SingleVariableDeclaration var = parameters.get(first.getIndex());
+      addTypeAndName(first, var, sb);
+      if (iosParameters.hasNext()) {
+        sb.append(mappedMethod.isVarArgs() ? ", " : " ");
+        IOSParameter next = iosParameters.next();
+        sb.append(next.getParameterName());
+        var = parameters.get(next.getIndex());
+        addTypeAndName(next, var, sb);
+      }
     }
     return sb.toString();
   }

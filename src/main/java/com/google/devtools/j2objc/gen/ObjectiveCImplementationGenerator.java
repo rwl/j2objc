@@ -591,6 +591,59 @@ public class ObjectiveCImplementationGenerator extends ObjectiveCSourceFileGener
   }
 
   @Override
+  protected String mappedConstructorDeclaration(MethodDeclaration m, IOSMethod mappedMethod) {
+    String methodBody;
+    IMethodBinding binding = Types.getMethodBinding(m);
+    boolean memDebug = Options.memoryDebug();
+    @SuppressWarnings("unchecked")
+    List<Statement> statements = m.getBody().statements();
+    if (binding.getDeclaringClass().isEnum()) {
+      return enumConstructorDeclaration(m, statements, binding);
+    } else if (statements.isEmpty()) {
+      methodBody = memDebug ?
+          "{\nreturn (self = JreMemDebugAdd([super init]));\n}" :
+          "{\nreturn (self = [super init]);\n}";
+    } else if (statements.size() == 1 &&
+        (statements.get(0) instanceof ConstructorInvocation ||
+         statements.get(0) instanceof SuperConstructorInvocation)) {
+      if (memDebug) {
+        methodBody = "{\nreturn JreMemDebugAdd(" +
+            generateStatement(statements.get(0), false, true) + ");\n}";
+      } else {
+        methodBody = "{\nreturn " + generateStatement(statements.get(0), false, true) + ";\n}";
+      }
+    } else {
+      StringBuffer sb = new StringBuffer();
+      Statement first = statements.get(0);
+      boolean firstPrinted = false;
+      sb.append("{\nif ((self = ");
+      if (first instanceof ConstructorInvocation ||
+          first instanceof SuperConstructorInvocation) {
+        sb.append(generateStatement(first, false, true));
+        firstPrinted = true;
+      } else {
+        sb.append("[super init]");
+      }
+      sb.append(")) {\n");
+      for (int i = firstPrinted ? 1 : 0; i < statements.size(); i++) {
+        sb.append(generateStatement(statements.get(i), false, true));
+      }
+      if (memDebug) {
+        sb.append("JreMemDebugAdd(self);\n");
+      }
+      sb.append("}\nreturn self;\n}");
+      methodBody = sb.toString();
+    }
+//    if (invokedConstructors.contains(constructorKey(binding))) {
+//      return super.constructorDeclaration(m, true) + " " + reindent(methodBody) + "\n\n"
+//          + super.constructorDeclaration(m, false) + " {\n  return "
+//          + generateStatement(createInnerConstructorInvocation(m), false) + ";\n}\n\n";
+//    } else {
+      return super.mappedConstructorDeclaration(m, mappedMethod) + " " + reindent(methodBody) + "\n\n";
+//    }
+  }
+
+  @Override
   protected String constructorDeclaration(MethodDeclaration m) {
     String methodBody;
     IMethodBinding binding = Types.getMethodBinding(m);
