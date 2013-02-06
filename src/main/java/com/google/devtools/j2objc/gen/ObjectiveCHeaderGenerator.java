@@ -613,7 +613,8 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
             typeString += " ";
           }
           String propertyName = NameTable.getName(var.getName());
-          println(String.format(") %s%s;", typeString, propertyName));
+          String outlet = Types.isOutlet(var) ? "IBOutlet " : "";
+          println(String.format(") %s%s%s;", outlet, typeString, propertyName));
           if (propertyName.startsWith("new") || propertyName.startsWith("copy")
               || propertyName.startsWith("alloc") || propertyName.startsWith("init")) {
             println(String.format("- (%s)%s OBJC_METHOD_FAMILY_NONE;",

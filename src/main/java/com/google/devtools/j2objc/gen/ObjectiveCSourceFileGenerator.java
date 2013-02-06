@@ -187,8 +187,10 @@ public abstract class ObjectiveCSourceFileGenerator extends SourceFileGenerator 
     boolean isStatic = Modifier.isStatic(m.getModifiers());
     IMethodBinding binding = Types.getMethodBinding(m);
     String methodName = NameTable.getName(binding);
+    String returnType = Types.isAction(binding) ? "IBAction" : NameTable
+        .javaRefToObjC(m.getReturnType2());
     String baseDeclaration = String.format("%c (%s)%s", isStatic ? '+' : '-',
-        NameTable.javaRefToObjC(m.getReturnType2()), methodName);
+        returnType, methodName);
     sb.append(baseDeclaration);
     @SuppressWarnings("unchecked")
     List<SingleVariableDeclaration> params = m.parameters(); // safe by definition
@@ -298,7 +300,9 @@ public abstract class ObjectiveCSourceFileGenerator extends SourceFileGenerator 
           sb.append(pad(baseDeclaration.length() - keyword.length()));
           sb.append(keyword);
         }
-        sb.append(String.format(":(%s)%s", NameTable.javaRefToObjC(param.getType()), fieldName));
+        String paramType = Types.isAction(method) ? "id" : NameTable
+            .javaRefToObjC(param.getType());
+        sb.append(String.format(":(%s)%s", paramType, fieldName));
         if (i + 1 < nParams) {
           sb.append('\n');
         }

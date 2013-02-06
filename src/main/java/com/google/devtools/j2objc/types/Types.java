@@ -45,6 +45,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -55,8 +56,10 @@ import com.google.devtools.j2objc.util.NameTable;
 import com.google.devtools.j2objc.wrapper.FunctionListBuilder;
 import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
 import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
+import com.google.j2objc.annotations.Action;
 import com.google.j2objc.annotations.AutoreleasePool;
 import com.google.j2objc.annotations.Model;
+import com.google.j2objc.annotations.Outlet;
 import com.google.j2objc.annotations.Register;
 import com.google.j2objc.annotations.Weak;
 import com.google.j2objc.annotations.WeakOuter;
@@ -992,6 +995,33 @@ public class Types {
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();
       if (name.equals(Model.class.getName())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isOutlet(VariableDeclarationFragment var) {
+    IVariableBinding binding = var.resolveBinding();
+    if (binding == null) {
+      return false;
+    }
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals(Outlet.class.getName())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isAction(IMethodBinding binding) {
+    if (binding == null) {
+      return false;
+    }
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals(Action.class.getName())) {
         return true;
       }
     }

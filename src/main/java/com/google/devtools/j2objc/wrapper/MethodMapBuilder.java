@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
@@ -20,6 +19,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
+import com.google.j2objc.annotations.Action;
 import com.google.j2objc.annotations.Export;
 
 public class MethodMapBuilder extends ErrorReportingASTVisitor {
@@ -43,13 +43,13 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     } else {
       mappedBindings.add(typeBinding);
     }
-    if (Types.isWrapper(typeBinding)) {
-      for (IMethodBinding methodBinding : typeBinding.getDeclaredMethods()) {
-        //if (!methodBinding.isConstructor()) {
-          String signature = getSignature(methodBinding);
-          String iosSignature = getIOSSignature(methodBinding);
-          bindingMap.put(signature, iosSignature);
-        //}
+    for (IMethodBinding methodBinding : typeBinding.getDeclaredMethods()) {
+      if (Types.isWrapper(typeBinding)
+          || Types.hasAnnotation(methodBinding, Export.class)
+          || Types.hasAnnotation(methodBinding, Action.class)) {
+        String signature = getSignature(methodBinding);
+        String iosSignature = getIOSSignature(methodBinding);
+        bindingMap.put(signature, iosSignature);
       }
     }
     put(typeBinding.getSuperclass());
@@ -101,6 +101,12 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
       if (anno.getAnnotationType().getQualifiedName().equals(Export.class.getName())) {
         for (IMemberValuePairBinding pair : anno.getDeclaredMemberValuePairs()) {
           if (pair.getName().equals("selector")) {
+            return (String) pair.getValue();
+          }
+        }
+      } else if (anno.getAnnotationType().getQualifiedName().equals(Action.class.getName())) {
+        for (IMemberValuePairBinding pair : anno.getDeclaredMemberValuePairs()) {
+          if (pair.getName().equals("value")) {
             return (String) pair.getValue();
           }
         }

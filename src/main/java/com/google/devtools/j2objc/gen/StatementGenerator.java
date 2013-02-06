@@ -34,6 +34,7 @@ import com.google.devtools.j2objc.util.NameTable;
 import com.google.devtools.j2objc.util.UnicodeUtils;
 import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
 import com.google.j2objc.annotations.Export;
+import com.google.j2objc.annotations.Selector;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -933,9 +934,15 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   @SuppressWarnings("unchecked")
   @Override
   public boolean visit(ClassInstanceCreation node) {
+    ITypeBinding type = Types.getTypeBinding(node.getType());
+    if (type.getQualifiedName().equals(Selector.class.getName())) {
+      buffer.append("@selector(");
+      buffer.append(((StringLiteral) node.arguments().get(0)).getLiteralValue());
+      buffer.append(")");
+      return false;
+    }
     boolean addAutorelease = useReferenceCounting;
     buffer.append(addAutorelease ? "[[[" : "[[");
-    ITypeBinding type = Types.getTypeBinding(node.getType());
     ITypeBinding outerType = type.getDeclaringClass();
     buffer.append(NameTable.getFullName(type));
     buffer.append(" alloc] ");
