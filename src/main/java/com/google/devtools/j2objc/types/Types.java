@@ -58,6 +58,7 @@ import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
 import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
 import com.google.j2objc.annotations.Action;
 import com.google.j2objc.annotations.AutoreleasePool;
+import com.google.j2objc.annotations.Deregister;
 import com.google.j2objc.annotations.Model;
 import com.google.j2objc.annotations.Outlet;
 import com.google.j2objc.annotations.Register;
@@ -953,6 +954,9 @@ public class Types {
     if (binding == null) {
       return false;
     }
+    if (binding.isEnum()) {
+      return true;
+    }
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();
       if (name.equals(Register.class.getName())) {
@@ -1022,6 +1026,19 @@ public class Types {
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();
       if (name.equals(Action.class.getName())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isDeregistered(ITypeBinding binding) {
+    if (binding == null) {
+      return false;
+    }
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals(Deregister.class.getName())) {
         return true;
       }
     }
@@ -1296,4 +1313,5 @@ public class Types {
       sb.append(';');
     }
   }
+
 }

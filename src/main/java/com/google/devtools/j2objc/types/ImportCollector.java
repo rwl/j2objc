@@ -103,6 +103,9 @@ public class ImportCollector extends ErrorReportingASTVisitor {
     if (binding.isPrimitive()) {
       return NULL_IMPORT;
     }
+    if (Types.isDeregistered(binding)) {
+      return NULL_IMPORT;
+    }
     return getReference(binding);
   }
 
