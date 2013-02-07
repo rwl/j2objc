@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.CLASS)
 public @interface Export {
 
-  String selector() default "";
+  String value() default "";
 
   StorageSemantic semantic() default StorageSemantic.NONE;
 }

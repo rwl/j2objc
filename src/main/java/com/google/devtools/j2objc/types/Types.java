@@ -954,9 +954,6 @@ public class Types {
     if (binding == null) {
       return false;
     }
-    if (binding.isEnum()) {
-      return true;
-    }
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();
       if (name.equals(Register.class.getName())) {
