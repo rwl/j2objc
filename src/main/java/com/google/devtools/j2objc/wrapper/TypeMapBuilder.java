@@ -63,6 +63,9 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
       }
     }
     put(typeBinding.getSuperclass());
+    for (ITypeBinding iface : typeBinding.getInterfaces()) {
+      put(iface);
+    }
   }
 
   @Override

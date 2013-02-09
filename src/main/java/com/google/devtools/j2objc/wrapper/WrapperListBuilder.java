@@ -40,6 +40,9 @@ public class WrapperListBuilder extends ErrorReportingASTVisitor {
       bindingList.add(typeBinding);
     }
     add(typeBinding.getSuperclass());
+    for (ITypeBinding iface : typeBinding.getInterfaces()) {
+      add(iface);
+    }
   }
 
   @Override
@@ -51,7 +54,7 @@ public class WrapperListBuilder extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(ClassInstanceCreation node) {
-    add(node.resolveTypeBinding());
+    add(Types.getTypeBinding(node));
     return super.visit(node);
   }
 

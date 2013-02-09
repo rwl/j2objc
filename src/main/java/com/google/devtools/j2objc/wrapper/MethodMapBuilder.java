@@ -4,12 +4,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
@@ -53,6 +57,9 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
       }
     }
     put(typeBinding.getSuperclass());
+    for (ITypeBinding iface : typeBinding.getInterfaces()) {
+      put(iface);
+    }
   }
 
   @Override
@@ -62,11 +69,11 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     return super.visit(node);
   }
 
-  /*@Override
+  @Override
   public boolean visit(ClassInstanceCreation node) {
-    put(node.resolveTypeBinding());
+    put(Types.getTypeBinding(node));
     return super.visit(node);
-  }*/
+  }
 
   @Override
   public boolean visit(QualifiedName node) {
@@ -77,6 +84,24 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
   @Override
   public boolean visit(FieldAccess node) {
     put(Types.getTypeBinding(node.getName().resolveBinding()));
+    return super.visit(node);
+  }
+
+  @Override
+  public boolean visit(MethodInvocation node) {
+    put(node.resolveTypeBinding());
+    return super.visit(node);
+  }
+
+//  @Override
+//  public boolean visit(MethodDeclaration node) {
+//    put(Types.getTypeBinding(node.getName().resolveTypeBinding()));
+//    return super.visit(node);
+//  }
+
+  @Override
+  public boolean visit(AnonymousClassDeclaration node) {
+    // TODO Auto-generated method stub
     return super.visit(node);
   }
 
@@ -100,7 +125,7 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     for (IAnnotationBinding anno : methodBinding.getAnnotations()) {
       if (anno.getAnnotationType().getQualifiedName().equals(Export.class.getName())) {
         for (IMemberValuePairBinding pair : anno.getDeclaredMemberValuePairs()) {
-          if (pair.getName().equals("selector")) {
+          if (pair.getName().equals("value")) {
             return (String) pair.getValue();
           }
         }
@@ -136,4 +161,5 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     }
     return clazz + ' ' + sb.toString();
   }
+
 }

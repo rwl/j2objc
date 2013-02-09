@@ -16,25 +16,11 @@
 
 package com.google.devtools.j2objc.gen;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.CharMatcher;
-import com.google.common.collect.Lists;
-import com.google.devtools.j2objc.J2ObjC;
-import com.google.devtools.j2objc.Options;
-import com.google.devtools.j2objc.translate.DestructorGenerator;
-import com.google.devtools.j2objc.types.GeneratedMethodBinding;
-import com.google.devtools.j2objc.types.IOSArrayTypeBinding;
-import com.google.devtools.j2objc.types.IOSMethod;
-import com.google.devtools.j2objc.types.IOSMethodBinding;
-import com.google.devtools.j2objc.types.IOSTypeBinding;
-import com.google.devtools.j2objc.types.Types;
-import com.google.devtools.j2objc.util.ASTNodeException;
-import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
-import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.util.UnicodeUtils;
-import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
-import com.google.j2objc.annotations.Export;
-import com.google.j2objc.annotations.Selector;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.Stack;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -107,11 +93,25 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.Stack;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.CharMatcher;
+import com.google.common.collect.Lists;
+import com.google.devtools.j2objc.J2ObjC;
+import com.google.devtools.j2objc.Options;
+import com.google.devtools.j2objc.translate.DestructorGenerator;
+import com.google.devtools.j2objc.types.GeneratedMethodBinding;
+import com.google.devtools.j2objc.types.IOSArrayTypeBinding;
+import com.google.devtools.j2objc.types.IOSMethod;
+import com.google.devtools.j2objc.types.IOSMethodBinding;
+import com.google.devtools.j2objc.types.IOSTypeBinding;
+import com.google.devtools.j2objc.types.Types;
+import com.google.devtools.j2objc.util.ASTNodeException;
+import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
+import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.util.UnicodeUtils;
+import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
+import com.google.j2objc.annotations.Selector;
+import com.google.j2objc.annotations.Target;
 
 /**
  * Returns an Objective-C equivalent of a Java AST node.
@@ -967,6 +967,12 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     buffer.append(']');
     if (addAutorelease) {
       buffer.append(" autorelease]");
+    }
+    if (type.getInterfaces().length > 0) {
+      String targetSelector = Types.getTargetSelector(type.getInterfaces()[0]);
+      if (targetSelector != null) {
+        buffer.append(" action:@selector(" + targetSelector + ")");
+      }
     }
     return false;
   }

@@ -62,6 +62,7 @@ import com.google.j2objc.annotations.Deregister;
 import com.google.j2objc.annotations.Model;
 import com.google.j2objc.annotations.Outlet;
 import com.google.j2objc.annotations.Register;
+import com.google.j2objc.annotations.Target;
 import com.google.j2objc.annotations.Weak;
 import com.google.j2objc.annotations.WeakOuter;
 
@@ -1040,6 +1041,23 @@ public class Types {
       }
     }
     return false;
+  }
+
+  public static String getTargetSelector(ITypeBinding binding) {
+    if (binding == null) {
+      return null;
+    }
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals(Target.class.getName())) {
+        for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
+          if ("value".equals(pair.getName())) {
+            return (String) pair.getValue();
+          }
+        }
+      }
+    }
+    return null;
   }
 
   // JDT doesn't have any way to dynamically create a null literal binding.
