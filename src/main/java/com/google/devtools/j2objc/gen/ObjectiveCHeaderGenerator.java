@@ -270,8 +270,8 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
 
   @Override
   protected String mappedMethodDeclaration(MethodDeclaration method, IOSMethod mappedMethod) {
-    IMethodBinding declaration = method.resolveBinding().getMethodDeclaration();
-    if (Types.isWrapper(Types.getOriginalMethodBinding(declaration).getDeclaringClass())) {
+    IMethodBinding binding = method.resolveBinding();
+    if (binding != null && Types.isWrapper(Types.getOriginalMethodBinding(binding.getMethodDeclaration()).getDeclaringClass())) {
       return "";
     } else {
       return super.mappedMethodDeclaration(method, mappedMethod) + ";\n";
@@ -319,7 +319,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
       if (!Types.isWrapper(b)) {
         forwardStmts.add(createForwardDeclaration(imp.getTypeName(), imp.isInterface()));
       } else {
-        forwardStmts.add(createImport(imp));
+        //forwardStmts.add(createImport(imp));
       }
     }
     for (ITypeBinding forward : forwards) {

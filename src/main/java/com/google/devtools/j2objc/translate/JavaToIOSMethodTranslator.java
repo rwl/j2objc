@@ -16,21 +16,8 @@
 
 package com.google.devtools.j2objc.translate;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.devtools.j2objc.J2ObjC;
-import com.google.devtools.j2objc.types.GeneratedMethodBinding;
-import com.google.devtools.j2objc.types.GeneratedVariableBinding;
-import com.google.devtools.j2objc.types.IOSMethod;
-import com.google.devtools.j2objc.types.IOSParameter;
-import com.google.devtools.j2objc.types.IOSTypeBinding;
-import com.google.devtools.j2objc.types.JavaMethod;
-import com.google.devtools.j2objc.types.NodeCopier;
-import com.google.devtools.j2objc.types.Types;
-import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
-import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
-import com.google.devtools.j2objc.wrapper.WrapperListBuilder;
+import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.Block;
@@ -53,8 +40,21 @@ import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
-import java.util.List;
-import java.util.Map;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.devtools.j2objc.J2ObjC;
+import com.google.devtools.j2objc.types.GeneratedMethodBinding;
+import com.google.devtools.j2objc.types.GeneratedVariableBinding;
+import com.google.devtools.j2objc.types.IOSMethod;
+import com.google.devtools.j2objc.types.IOSParameter;
+import com.google.devtools.j2objc.types.IOSTypeBinding;
+import com.google.devtools.j2objc.types.JavaMethod;
+import com.google.devtools.j2objc.types.NodeCopier;
+import com.google.devtools.j2objc.types.Types;
+import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
+import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
+import com.google.devtools.j2objc.wrapper.WrapperSetBuilder;
 
 /**
  * Translates method invocations and overridden methods from Java core types to
@@ -95,7 +95,7 @@ public class JavaToIOSMethodTranslator extends ErrorReportingASTVisitor {
   }
 
   private void initializeWrapperTypeBindings() {
-    for (ITypeBinding typeBinding : WrapperListBuilder.buildList(unit)) {
+    for (ITypeBinding typeBinding : WrapperSetBuilder.buildSet(unit)) {
       loadTargetMethods(typeBinding);
     }
   }

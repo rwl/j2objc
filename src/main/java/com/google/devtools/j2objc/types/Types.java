@@ -18,6 +18,7 @@ package com.google.devtools.j2objc.types;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -53,7 +54,7 @@ import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.Options;
 import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.wrapper.FunctionListBuilder;
+import com.google.devtools.j2objc.wrapper.FunctionSetBuilder;
 import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
 import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
 import com.google.j2objc.annotations.Action;
@@ -170,7 +171,7 @@ public class Types {
   }
 
   private void initializeWrapperMappings() {
-    functions.addAll(FunctionListBuilder.buildList(unit));
+    functions.addAll(FunctionSetBuilder.buildSet(unit));
 
     Map<ITypeBinding, IOSTypeBinding> map = TypeMapBuilder.buildMap(unit);
     for (Entry<ITypeBinding, IOSTypeBinding> entry : map.entrySet()) {
@@ -353,8 +354,8 @@ public class Types {
   public static IMethodBinding getOriginalMethodBinding(IMethodBinding method) {
     if (method != null) {
       ITypeBinding clazz = method.getDeclaringClass();
-      ITypeBinding superclass = clazz.getSuperclass();
-      if (superclass != null) {
+      //ITypeBinding superclass = clazz.getSuperclass();
+      for (ITypeBinding superclass : getAllSuperClasses(clazz)) {
         for (IMethodBinding interfaceMethod : superclass.getDeclaredMethods()) {
           if (!(interfaceMethod instanceof IOSMethodBinding) && method.overrides(interfaceMethod)) {
             IMethodBinding decl = interfaceMethod.getMethodDeclaration();
@@ -374,6 +375,18 @@ public class Types {
 
     }
     return method;
+  }
+
+  private static List<ITypeBinding> getAllSuperClasses(ITypeBinding clazz) {
+    List<ITypeBinding> superClasses = Lists.newArrayList();
+
+    ITypeBinding superClass = clazz.getSuperclass();
+    while (superClass != null) {
+      superClasses.add(superClass);
+      superClass = superClass.getSuperclass();
+    }
+    Collections.reverse(superClasses);
+    return superClasses;
   }
 
   /**
@@ -763,11 +776,21 @@ public class Types {
   }
 
   public static boolean isFunction(IMethodBinding binding) {
+    if (binding instanceof IOSMethodBinding) {
+      binding = getDelegate(binding);
+    }
     if (instance.functions.contains(binding)) {
       return true;
     }
     IMethodBinding decl = binding.getMethodDeclaration();
     return decl != null ? instance.functions.contains(decl) : false;
+  }
+
+  private static IMethodBinding getDelegate(IMethodBinding binding) {
+    if (binding instanceof IOSMethodBinding) {
+      binding = getDelegate(((IOSMethodBinding) binding).getDelegate());
+    }
+    return binding;
   }
 
   public static boolean isVoidType(Type type) {

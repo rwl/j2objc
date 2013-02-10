@@ -111,7 +111,6 @@ import com.google.devtools.j2objc.util.NameTable;
 import com.google.devtools.j2objc.util.UnicodeUtils;
 import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
 import com.google.j2objc.annotations.Selector;
-import com.google.j2objc.annotations.Target;
 
 /**
  * Returns an Objective-C equivalent of a Java AST node.

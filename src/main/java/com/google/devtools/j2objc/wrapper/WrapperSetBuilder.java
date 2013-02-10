@@ -1,6 +1,5 @@
 package com.google.devtools.j2objc.wrapper;
 
-import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -11,21 +10,20 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
 
-public class WrapperListBuilder extends ErrorReportingASTVisitor {
+public class WrapperSetBuilder extends ErrorReportingASTVisitor {
 
-  private final List<ITypeBinding> bindingList = Lists.newArrayList();
+  private final Set<ITypeBinding> bindingSet = Sets.newHashSet();
 
   private final Set<ITypeBinding> mappedBindings = Sets.newHashSet();
 
-  public static List<ITypeBinding> buildList(final CompilationUnit unit) {
-    final WrapperListBuilder builder = new WrapperListBuilder();
+  public static Set<ITypeBinding> buildSet(final CompilationUnit unit) {
+    final WrapperSetBuilder builder = new WrapperSetBuilder();
     builder.run(unit);
-    return builder.bindingList;
+    return builder.bindingSet;
   }
 
   private void add(ITypeBinding typeBinding) {
@@ -37,7 +35,7 @@ public class WrapperListBuilder extends ErrorReportingASTVisitor {
       mappedBindings.add(typeBinding);
     }
     if (Types.isWrapper(typeBinding)) {
-      bindingList.add(typeBinding);
+      bindingSet.add(typeBinding);
     }
     add(typeBinding.getSuperclass());
     for (ITypeBinding iface : typeBinding.getInterfaces()) {

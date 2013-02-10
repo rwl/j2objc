@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -12,7 +11,6 @@ import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -90,6 +88,10 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
   @Override
   public boolean visit(MethodInvocation node) {
     put(node.resolveTypeBinding());
+    IMethodBinding methodBinding = node.resolveMethodBinding();
+    if (methodBinding != null) {
+      put(methodBinding.getDeclaringClass());
+    }
     return super.visit(node);
   }
 
@@ -98,12 +100,6 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
 //    put(Types.getTypeBinding(node.getName().resolveTypeBinding()));
 //    return super.visit(node);
 //  }
-
-  @Override
-  public boolean visit(AnonymousClassDeclaration node) {
-    // TODO Auto-generated method stub
-    return super.visit(node);
-  }
 
   private static String getSignature(final IMethodBinding methodBinding) {
     final String clazz = methodBinding.getDeclaringClass().getQualifiedName();
@@ -148,7 +144,7 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
       String paramType = Types.mapType(parameterTypes[i]).getName();
       String param = String.format(":(%s%s)%s", paramType,
           Types.isPrimitive(parameterTypes[i]) ? "" : " *",
-          paramType.substring(0, 1).toLowerCase() + paramType.substring(1) + "_");
+          paramType.substring(0, 1).toLowerCase() + paramType.substring(1) + i + "_");
       if (i != parameterTypes.length - 1) {
         param += ' ';
       }
