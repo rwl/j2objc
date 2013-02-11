@@ -7,6 +7,7 @@ import java.util.Set;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -82,6 +83,12 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
   @Override
   public boolean visit(FieldAccess node) {
     put(Types.getTypeBinding(node.getName().resolveBinding()));
+    return super.visit(node);
+  }
+
+  @Override
+  public boolean visit(FieldDeclaration node) {
+    put(node.getType().resolveBinding());
     return super.visit(node);
   }
 

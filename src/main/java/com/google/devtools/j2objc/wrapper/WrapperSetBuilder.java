@@ -5,6 +5,7 @@ import java.util.Set;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -63,11 +64,19 @@ public class WrapperSetBuilder extends ErrorReportingASTVisitor {
   }
 
   @Override
+  public boolean visit(FieldDeclaration node) {
+    add(node.getType().resolveBinding());
+    return super.visit(node);
+  }
+
+  @Override
   public boolean visit(MethodInvocation node) {
     IMethodBinding methodBinding = node.resolveMethodBinding();
     if (methodBinding != null) {
       add(methodBinding.getDeclaringClass());
+      add(methodBinding.getReturnType());
     }
     return super.visit(node);
   }
+
 }

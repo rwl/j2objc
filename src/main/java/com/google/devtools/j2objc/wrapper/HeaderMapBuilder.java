@@ -96,6 +96,7 @@ public class HeaderMapBuilder extends ErrorReportingASTVisitor {
     IMethodBinding methodBinding = node.resolveMethodBinding();
     if (methodBinding != null) {
       put(methodBinding.getDeclaringClass());
+      put(methodBinding.getReturnType());
     }
     return super.visit(node);
   }

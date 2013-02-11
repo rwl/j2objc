@@ -320,6 +320,7 @@ public class ObjectiveCHeaderGenerator extends ObjectiveCSourceFileGenerator {
         forwardStmts.add(createForwardDeclaration(imp.getTypeName(), imp.isInterface()));
       } else {
         //forwardStmts.add(createImport(imp));
+        superTypes.add(imp);
       }
     }
     for (ITypeBinding forward : forwards) {

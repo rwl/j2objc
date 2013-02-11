@@ -6,8 +6,10 @@ import java.util.Set;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -94,6 +96,12 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
   }
 
   @Override
+  public boolean visit(FieldDeclaration node) {
+    put(node.getType().resolveBinding());
+    return super.visit(node);
+  }
+
+  @Override
   public boolean visit(MethodDeclaration node) {
     for (ITypeBinding param : node.resolveBinding().getParameterTypes()) {
       put(param);
@@ -103,7 +111,11 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(MethodInvocation node) {
-    put(node.resolveMethodBinding().getDeclaringClass());
+    IMethodBinding binding = node.resolveMethodBinding();
+    if (binding != null) {
+      put(binding.getDeclaringClass());
+      put(binding.getReturnType());
+    }
     return super.visit(node);
   }
 

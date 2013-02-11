@@ -60,6 +60,7 @@ import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
 import com.google.j2objc.annotations.Action;
 import com.google.j2objc.annotations.AutoreleasePool;
 import com.google.j2objc.annotations.Deregister;
+import com.google.j2objc.annotations.Function;
 import com.google.j2objc.annotations.Model;
 import com.google.j2objc.annotations.Outlet;
 import com.google.j2objc.annotations.Register;
@@ -171,7 +172,7 @@ public class Types {
   }
 
   private void initializeWrapperMappings() {
-    functions.addAll(FunctionSetBuilder.buildSet(unit));
+//    functions.addAll(FunctionSetBuilder.buildSet(unit));
 
     Map<ITypeBinding, IOSTypeBinding> map = TypeMapBuilder.buildMap(unit);
     for (Entry<ITypeBinding, IOSTypeBinding> entry : map.entrySet()) {
@@ -381,7 +382,7 @@ public class Types {
     List<ITypeBinding> superClasses = Lists.newArrayList();
 
     ITypeBinding superClass = clazz.getSuperclass();
-    while (superClass != null) {
+    while (superClass != null && !superClass.getQualifiedName().equals(Object.class.getName())) {
       superClasses.add(superClass);
       superClass = superClass.getSuperclass();
     }
@@ -777,7 +778,8 @@ public class Types {
 
   public static boolean isFunction(IMethodBinding binding) {
     if (binding instanceof IOSMethodBinding) {
-      binding = getDelegate(binding);
+      if (hasAnnotation(getDelegate(binding), Function.class))
+        return true;
     }
     if (instance.functions.contains(binding)) {
       return true;
