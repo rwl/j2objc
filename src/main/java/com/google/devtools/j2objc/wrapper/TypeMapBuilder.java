@@ -123,7 +123,7 @@ public class TypeMapBuilder extends ErrorReportingASTVisitor {
     for (IAnnotationBinding annotation : typeBinding.getAnnotations()) {
       if (annotation.getAnnotationType().getQualifiedName().equals(BaseType.class.getName())) {
         for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
-          if (pair.getKey().equals("value")) {
+          if ("value".equals(pair.getKey())) {
             Class<?> baseType = (Class<?>) pair.getValue();
             return new IOSTypeBinding(baseType.getSimpleName(), false);
           }
