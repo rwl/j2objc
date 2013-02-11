@@ -110,6 +110,7 @@ import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
 import com.google.devtools.j2objc.util.NameTable;
 import com.google.devtools.j2objc.util.UnicodeUtils;
 import com.google.devtools.j2objc.wrapper.MethodMapBuilder;
+import com.google.j2objc.annotations.Mask;
 import com.google.j2objc.annotations.Selector;
 
 /**
@@ -1405,6 +1406,8 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
         }
       }
       buffer.append(")");
+    } else if (node.resolveMethodBinding() != null && Types.hasAnnotation(node.resolveMethodBinding(), Mask.class)) {
+      receiver.accept(this);
     } else if (methodName.equals("isAssignableFrom") &&
         binding.getDeclaringClass().equals(Types.getIOSClass())) {
       printIsAssignableFromExpression(node);
