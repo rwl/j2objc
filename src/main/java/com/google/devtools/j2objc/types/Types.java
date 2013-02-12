@@ -54,7 +54,6 @@ import com.google.common.collect.Sets;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.Options;
 import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.wrapper.FunctionSetBuilder;
 import com.google.devtools.j2objc.wrapper.HeaderMapBuilder;
 import com.google.devtools.j2objc.wrapper.TypeMapBuilder;
 import com.google.j2objc.annotations.Action;
@@ -979,6 +978,9 @@ public class Types {
   public static boolean isPrimitive(ITypeBinding binding) {
     if (binding == null) {
       return false;
+    }
+    if (binding.isPrimitive()) {
+      return true;
     }
     for (IAnnotationBinding annotation : binding.getAnnotations()) {
       String name = annotation.getAnnotationType().getQualifiedName();

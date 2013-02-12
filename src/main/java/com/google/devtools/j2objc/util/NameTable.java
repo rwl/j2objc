@@ -16,11 +16,13 @@
 
 package com.google.devtools.j2objc.util;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.devtools.j2objc.Options;
-import com.google.devtools.j2objc.types.IOSTypeBinding;
-import com.google.devtools.j2objc.types.Types;
+import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -44,13 +46,11 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
-import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.devtools.j2objc.Options;
+import com.google.devtools.j2objc.types.IOSTypeBinding;
+import com.google.devtools.j2objc.types.Types;
 
 /**
  * Singleton service for type/method/variable name support.
@@ -357,7 +357,7 @@ public class NameTable {
   }
 
   public static String javaRefToObjC(ITypeBinding type) {
-    if (type.isPrimitive()) {
+    if (Types.isPrimitive(type)) {
       return primitiveTypeToObjC(type.getName());
     }
     String typeName = javaTypeToObjC(type, false);

@@ -2206,7 +2206,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     assert !vars.isEmpty();
     ITypeBinding binding = Types.getTypeBinding(vars.get(0));
     String objcType = NameTable.javaRefToObjC(binding);
-    boolean needsAsterisk = !binding.isPrimitive() &&
+    boolean needsAsterisk = !Types.isPrimitive(binding) &&
         !(objcType.equals(NameTable.ID_TYPE) || objcType.matches("id<.*>"));
     if (needsAsterisk && objcType.endsWith(" *")) {
       // Strip pointer from type, as it will be added when appending fragment.
