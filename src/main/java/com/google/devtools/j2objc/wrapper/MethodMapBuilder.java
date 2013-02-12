@@ -16,7 +16,6 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -118,8 +117,12 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
   public static String getIOSSignature(final IMethodBinding methodBinding) {
     String selector = getSelector(methodBinding);
     if (selector == null) {
-      selector = methodBinding.getName() + Strings.repeat(": ", methodBinding
-          .getParameterTypes().length).trim();
+      selector = methodBinding.getName();
+      for (int i = 0; i < methodBinding.getParameterTypes().length; i++) {
+        ITypeBinding paramType = methodBinding.getParameterTypes()[i];
+        selector += paramType.getName() + i + ":";
+      }
+      selector = selector.trim();
     }
     return parameterizeSelector(selector, methodBinding);
   }
@@ -148,10 +151,11 @@ public class MethodMapBuilder extends ErrorReportingASTVisitor {
     final ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
     final List<String> segments = Lists.newArrayList(selector.split(":"));
     for (int i = 0; i < parameterTypes.length; i++) {
-      String paramType = Types.mapType(parameterTypes[i]).getName();
-      String param = String.format(":(%s%s)%s", paramType,
+      ITypeBinding paramType = parameterTypes[i];
+      String paramTypeName = paramType.isPrimitive() ? Types.getPrimitiveTypeName(paramType) : Types.mapType(paramType).getName();
+      String param = String.format(":(%s%s)%s", paramTypeName,
           Types.isPrimitive(parameterTypes[i]) ? "" : " *",
-          paramType.substring(0, 1).toLowerCase() + paramType.substring(1) + i + "_");
+          paramTypeName.substring(0, 1).toLowerCase() + paramTypeName.substring(1) + i + "_");
       if (i != parameterTypes.length - 1) {
         param += ' ';
       }
