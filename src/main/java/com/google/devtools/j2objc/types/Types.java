@@ -975,26 +975,6 @@ public class Types {
     return false;
   }
 
-  public static boolean isPrimitive(ITypeBinding binding) {
-    if (binding == null) {
-      return false;
-    }
-    if (binding.isPrimitive()) {
-      return true;
-    }
-    for (IAnnotationBinding annotation : binding.getAnnotations()) {
-      String name = annotation.getAnnotationType().getQualifiedName();
-      if (name.equals(Register.class.getName())) {
-        for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
-          if (pair.getName().equals("isPrimitive") && ((Boolean) pair.getValue())) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  }
-
   public static boolean isInterface(TypeDeclaration node) {
     if (node.isInterface()) {
       return true;
@@ -1012,6 +992,32 @@ public class Types {
     for (IAnnotationBinding anno : typeBinding.getAnnotations()) {
       if (anno.getAnnotationType().getQualifiedName().equals(Model.class.getName())) {
         return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isPrimitive(ITypeBinding binding) {
+    if (binding == null) {
+      return false;
+    }
+    if (binding.isPrimitive()) {
+      return true;
+    }
+    if (binding instanceof IOSTypeBinding) {
+      ITypeBinding orig = resolveOriginalTypeBinding((IOSTypeBinding) binding);
+      if (orig != null) {
+        binding = orig;
+      }
+    }
+    for (IAnnotationBinding annotation : binding.getAnnotations()) {
+      String name = annotation.getAnnotationType().getQualifiedName();
+      if (name.equals(Register.class.getName())) {
+        for (IMemberValuePairBinding pair : annotation.getDeclaredMemberValuePairs()) {
+          if (pair.getName().equals("isPrimitive") && ((Boolean) pair.getValue())) {
+            return true;
+          }
+        }
       }
     }
     return false;

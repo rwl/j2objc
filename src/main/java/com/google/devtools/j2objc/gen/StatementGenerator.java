@@ -335,7 +335,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   private void printNilCheck(Expression e, boolean needsCast) {
     IVariableBinding sym = Types.getVariableBinding(e);
     // Outer class references should always be non-nil.
-    if (sym != null && !sym.getName().startsWith("this$") && !hasNilCheckParent(e, sym)) {
+    if (sym != null && !sym.getName().startsWith("this$") && !hasNilCheckParent(e, sym) && !Types.isPrimitive(sym.getType())) {
       ITypeBinding symType = Types.mapType(sym.getType());
       if (needsCast && (Types.getNSObject().isEqualTo(symType) ||
           Types.getIOSClass().isEqualTo(symType) || Types.getNSString().isEqualTo(symType))) {
@@ -1526,7 +1526,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   }
 
   private boolean printCast(ITypeBinding type) {
-    if (type == null || type.isPrimitive() || type.isTypeVariable() || Types.isVoidType(type) ||
+    if (type == null || Types.isPrimitive(type) || type.isTypeVariable() || Types.isVoidType(type) ||
         Types.isJavaObjectType(type)) {
       return false;
     }
