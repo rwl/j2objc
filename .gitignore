@@ -1,7 +1,10 @@
-/build_result/
 /dist/
+/build_result/
 /jre_emul/build_result/
+/junit/build_result/
 
 .classpath
 .project
 /.settings/
+
+.DS_Store
