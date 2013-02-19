@@ -21,6 +21,7 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
+import com.google.devtools.j2objc.gen.LLVMModuleGenerator;
 import com.google.devtools.j2objc.gen.ObjectiveCHeaderGenerator;
 import com.google.devtools.j2objc.gen.ObjectiveCImplementationGenerator;
 import com.google.devtools.j2objc.sym.Symbols;
@@ -94,7 +95,9 @@ public class J2ObjC {
   private static int nWarnings = 0;
 
   public enum Language {
-    OBJECTIVE_C(".m"), OBJECTIVE_CPP(".mm");
+    OBJECTIVE_C(".m"),
+    OBJECTIVE_CPP(".mm"),
+    LLVM_BYTE_CODE(".ll");
 
     private final String suffix;
 
@@ -167,6 +170,10 @@ public class J2ObjC {
         // write implementation file
         ObjectiveCImplementationGenerator.generate(
             filename, Options.getLanguage(), currentUnit, source);
+
+        if (Options.emitLLVM()) {
+          LLVMModuleGenerator.generate(filename, Language.LLVM_BYTE_CODE, source, currentUnit);
+        }
       }
     } catch (ASTNodeException e) {
       error(e);

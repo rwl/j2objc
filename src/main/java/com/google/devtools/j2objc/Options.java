@@ -64,6 +64,7 @@ public class Options {
   private static boolean generateTestMain = true;
   private static boolean memoryDebug = false;
   private static boolean generateNativeStubs = false;
+  private static boolean emitLLVM = false;
 
   private static DeadCodeMap deadCodeMap = null;
   private static File proGuardUsageFile = null;
@@ -226,7 +227,9 @@ public class Options {
       } else if (arg.equals("--mem-debug")) {
         memoryDebug = true;
       } else if (arg.equals("--generate-native-stubs")) {
-        generateNativeStubs = true;
+          generateNativeStubs = true;
+      } else if (arg.equals("-emit-llvm")) {
+          emitLLVM = true;
       } else if (arg.startsWith("-h") || arg.equals("--help")) {
         help();
       } else if (arg.startsWith("-")) {
@@ -387,6 +390,14 @@ public class Options {
 
   public static void setGenerateNativeStubs(boolean value) {
     generateNativeStubs = value;
+  }
+
+  public static boolean emitLLVM() {
+    return emitLLVM;
+  }
+
+  public static void setEmitLLVM(boolean value) {
+    emitLLVM = value;
   }
 
   /**
