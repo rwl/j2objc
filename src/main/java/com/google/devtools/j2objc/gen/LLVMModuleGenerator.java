@@ -1,6 +1,7 @@
 package com.google.devtools.j2objc.gen;
 
 import java.util.List;
+import java.util.Map;
 
 import llvm.BasicBlock;
 import llvm.Builder;
@@ -22,6 +23,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.devtools.j2objc.J2ObjC.Language;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.NameTable;
@@ -49,7 +51,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
    * their LLVM representation is. Method parameters will be in this map when
    * generating code for their method body.
    */
-//  private final Map<String, Value> namedValues = Maps.newHashMap();
+  private final Map<String, Value> namedValues = Maps.newHashMap();
 
   /**
    * Static Single Assignment (SSA) registers
@@ -185,7 +187,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void generateStatement(Statement stmt, boolean asFunction) {
-    SSAGenerator.generate(stmt, irBuilder, asFunction);
+    SSAGenerator.generate(stmt, irBuilder, namedValues, asFunction);
   }
 
   @Override
