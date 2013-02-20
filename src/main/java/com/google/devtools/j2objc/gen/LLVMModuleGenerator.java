@@ -18,6 +18,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import com.google.common.collect.Lists;
@@ -41,7 +42,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   /**
    * Helper object that makes it easy to generate LLVM instructions.
    */
-  private final Builder builder;
+  private final Builder irBuilder;
 
   /**
    * Keeps track of which values are defined in the current scope and what
@@ -75,7 +76,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
       String source, CompilationUnit unit) {
     super(sourceFileName, source, unit, false);
     mod = Module.CreateWithName(sourceFileName);
-    builder = Builder.CreateBuilder();
+    irBuilder = Builder.CreateBuilder();
     suffix = language.getSuffix();
   }
 
@@ -148,23 +149,43 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
 
     BasicBlock bb = f_main.AppendBasicBlock("entrypoint");
 
-    Builder builder = Builder.CreateBuilder();
-    builder.PositionBuilderAtEnd(bb);
+    irBuilder.PositionBuilderAtEnd(bb);
 
-    Value i1 = builder.BuildAlloca(ty_i32.type(), "i1");
-    Value i2 = builder.BuildAlloca(ty_i32.type(), "i2");
-    Value i3 = builder.BuildAlloca(ty_i32.type(), "i3");
+    Value i1 = irBuilder.BuildAlloca(ty_i32.type(), "i1");
+    Value i2 = irBuilder.BuildAlloca(ty_i32.type(), "i2");
+    Value i3 = irBuilder.BuildAlloca(ty_i32.type(), "i3");
 
-    builder.BuildStore(ty_i32.ConstInt(0, true), i1);
-    builder.BuildStore(argc, i2);
-    builder.BuildStore(argv, i3);
+    irBuilder.BuildStore(ty_i32.ConstInt(0, true), i1);
+    irBuilder.BuildStore(argc, i2);
+    irBuilder.BuildStore(argv, i3);
 
-    builder.BuildRet(ty_i32.ConstInt(0, true));
+    if (m != null) {
+      @SuppressWarnings("unchecked")
+      List<SingleVariableDeclaration> params = m.parameters();
+      assert params.size() == 1;  // Previously checked in isMainMethod().
+      printMethodBody(m, true);
+    }
+
+    irBuilder.BuildRet(ty_i32.ConstInt(0, true));
+  }
+
+  private void printMethodBody(MethodDeclaration m, boolean isFunction) throws AssertionError {
+    for (Object stmt : m.getBody().statements()) {
+      if (stmt instanceof Statement) {
+        generateStatement((Statement) stmt, isFunction);
+      } else {
+        throw new AssertionError("unexpected AST type: " + stmt.getClass());
+      }
+    }
   }
 
   @Override
   protected void printStaticConstructorDeclaration(MethodDeclaration m) {
 
+  }
+
+  private void generateStatement(Statement stmt, boolean asFunction) {
+    SSAGenerator.generate(stmt, irBuilder, asFunction);
   }
 
   @Override

@@ -16,6 +16,7 @@
 
 package com.google.devtools.j2objc.util;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.devtools.j2objc.Options;
@@ -51,6 +52,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+
+import llvm.TypeRef;
 
 /**
  * Singleton service for type/method/variable name support.
@@ -313,6 +316,23 @@ public class NameTable {
     return javaName;
   }
 
+  private static final Map<String, TypeRef> llvmPrimitiveMap = ImmutableMap.<String, TypeRef>builder()
+      .put("int", TypeRef.Int32Type())
+      .put("float", TypeRef.FloatType())
+      .put("double", TypeRef.DoubleType())
+      .put("void", TypeRef.VoidType())
+      .put("boolean", TypeRef.Int1Type())
+      .put("byte", TypeRef.Int8Type())
+      .put("char", TypeRef.Int16Type())
+      .put("short", TypeRef.Int16Type())
+      .put("long", TypeRef.Int64Type()).build();
+
+  private static TypeRef primitiveTypeToLLVM(String javaName) {
+    TypeRef llvmType = llvmPrimitiveMap.get(javaName);
+    assert llvmType != null: "invalid primitive type: " + javaName;
+    return llvmType;
+  }
+
   /**
    * Convert a Java type into an equivalent Objective-C type.
    */
@@ -368,6 +388,13 @@ public class NameTable {
       return NameTable.ID_TYPE;
     }
     return typeName + " *";
+  }
+
+  public static TypeRef javaRefToLLVM(ITypeBinding type) {
+    if (type.isPrimitive()) {
+      return primitiveTypeToLLVM(type.getName());
+    }
+    throw new AssertionError("todo");
   }
 
   /**
