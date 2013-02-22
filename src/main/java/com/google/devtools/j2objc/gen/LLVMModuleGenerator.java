@@ -3,12 +3,6 @@ package com.google.devtools.j2objc.gen;
 import java.util.List;
 import java.util.Map;
 
-import llvm.BasicBlock;
-import llvm.Builder;
-import llvm.Module;
-import llvm.TypeRef;
-import llvm.Value;
-import llvm.binding.LLVMLibrary.LLVMAttribute;
 
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
@@ -21,6 +15,13 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.llvm.BasicBlock;
+import org.llvm.Builder;
+import org.llvm.Module;
+import org.llvm.TypeRef;
+import org.llvm.Value;
+import org.llvm.binding.LLVMLibrary.LLVMAttribute;
+import org.llvm.binding.LLVMLibrary.LLVMVisibility;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -71,14 +72,14 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     LLVMModuleGenerator moduleGenerator = new LLVMModuleGenerator(fileName,
         language, source, unit);
     moduleGenerator.generate(unit);
-    moduleGenerator.mod.DumpModule();
+    moduleGenerator.mod.dumpModule();
   }
 
   public LLVMModuleGenerator(String sourceFileName, Language language,
       String source, CompilationUnit unit) {
     super(sourceFileName, source, unit, false);
-    mod = Module.CreateWithName(sourceFileName);
-    irBuilder = Builder.CreateBuilder();
+    mod = Module.createWithName(sourceFileName);
+    irBuilder = Builder.createBuilder();
     suffix = language.getSuffix();
   }
 
@@ -136,30 +137,39 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void printMainMethod(MethodDeclaration m, String typeName) {
-    TypeRef ty_i32 = TypeRef.IntType(32);
-    TypeRef ty_i8pp = TypeRef.IntType(8).PointerType(0).PointerType(0);
-    TypeRef ty_func = TypeRef.FunctionType(ty_i32, ty_i32, ty_i8pp);
+    TypeRef ty_i32 = TypeRef.intType(32);
+    TypeRef ty_i8pp = TypeRef.intType(8).pointerType(0).pointerType(0);
+    TypeRef ty_func = TypeRef.functionType(ty_i32, ty_i32, ty_i8pp);
 
-    Value f_main = mod.AddFunction("main", ty_func.type());
-    f_main.AddFunctionAttr(LLVMAttribute.LLVMNoUnwindAttribute);
-//    f_main.AddFunctionAttr(LLVMAttribute.LLVMUWTable);
+    Value f_main = mod.addFunction("main", ty_func.type());
+    f_main.addFunctionAttr(LLVMAttribute.LLVMNoUnwindAttribute);
+    //f_main.addFunctionAttr(LLVMAttribute.LLVMUWTable);
 
-    Value argc = f_main.GetParam(0);
-    argc.SetValueName("argc");
-    Value argv = f_main.GetParam(1);
-    argv.SetValueName("argv");
+//    Value fuz = Value.constString("fuz", 3, false);
+//    mod.addGlobal( , ".objc_str");
+//    TypeRef ty_int = TypeRef.int32Type();
+//    Value g = mod.addGlobal(ty_int, "globl");
+//    g.setVisibility(LLVMVisibility.LLVMHiddenVisibility);
+//
+//    TypeRef ty_opaque = TypeRef.structTypeNamed("");
+//    mod.addGlobal(ty_opaque, "opg");
 
-    BasicBlock bb = f_main.AppendBasicBlock("entrypoint");
+    Value argc = f_main.getParam(0);
+    argc.setValueName("argc");
+    Value argv = f_main.getParam(1);
+    argv.setValueName("argv");
 
-    irBuilder.PositionBuilderAtEnd(bb);
+    BasicBlock bb = f_main.appendBasicBlock("entrypoint");
 
-    Value i1 = irBuilder.BuildAlloca(ty_i32.type(), "i1");
-    Value i2 = irBuilder.BuildAlloca(ty_i32.type(), "i2");
-    Value i3 = irBuilder.BuildAlloca(ty_i32.type(), "i3");
+    irBuilder.positionBuilderAtEnd(bb);
 
-    irBuilder.BuildStore(ty_i32.ConstInt(0, true), i1);
-    irBuilder.BuildStore(argc, i2);
-    irBuilder.BuildStore(argv, i3);
+    Value i1 = irBuilder.buildAlloca(ty_i32.type(), "i1");
+    Value i2 = irBuilder.buildAlloca(ty_i32.type(), "i2");
+    Value i3 = irBuilder.buildAlloca(ty_i32.type(), "i3");
+
+    irBuilder.buildStore(ty_i32.constInt(0, true), i1);
+    irBuilder.buildStore(argc, i2);
+    irBuilder.buildStore(argv, i3);
 
     if (m != null) {
       @SuppressWarnings("unchecked")
@@ -168,7 +178,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
       printMethodBody(m, true);
     }
 
-    irBuilder.BuildRet(ty_i32.ConstInt(0, true));
+    irBuilder.buildRet(ty_i32.constInt(0, true));
   }
 
   private void printMethodBody(MethodDeclaration m, boolean isFunction) throws AssertionError {

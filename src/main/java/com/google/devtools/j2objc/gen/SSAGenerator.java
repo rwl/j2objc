@@ -5,9 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
-import llvm.Builder;
-import llvm.TypeRef;
-import llvm.Value;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
@@ -20,12 +17,17 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.llvm.Builder;
+import org.llvm.TypeRef;
+import org.llvm.Value;
 
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.util.UnicodeUtils;
 
 public class SSAGenerator extends ErrorReportingASTVisitor {
 
@@ -67,8 +69,15 @@ public class SSAGenerator extends ErrorReportingASTVisitor {
 
       lhs.accept(this);
       rhs.accept(this);
-      builder.BuildStore(valueStack.pop(), namedValues.get(nameStack.pop()));
+      builder.buildStore(valueStack.pop(), namedValues.get(nameStack.pop()));
     }
+    return false;
+  }
+
+  @Override
+  public boolean visit(StringLiteral node) {
+    String s = UnicodeUtils.escapeStringLiteral(node.getEscapedValue());
+    Value.constString(s, s.length(), false);
     return false;
   }
 
@@ -81,11 +90,11 @@ public class SSAGenerator extends ErrorReportingASTVisitor {
 
     Value value = null;
     if (kind == 'D' || kind == 'F') {
-      value = TypeRef.DoubleType().ConstReal(Double.valueOf(token));
+      value = TypeRef.doubleType().constReal(Double.valueOf(token));
     } else if (kind == 'J') {
-      value = TypeRef.Int64Type().ConstInt(Long.valueOf(token), true);
+      value = TypeRef.int64Type().constInt(Long.valueOf(token), true);
     } else if (kind == 'I') {
-      value = TypeRef.Int32Type().ConstInt(Integer.valueOf(token), true);
+      value = TypeRef.int32Type().constInt(Integer.valueOf(token), true);
     }
 
     assert value != null;
@@ -116,13 +125,13 @@ public class SSAGenerator extends ErrorReportingASTVisitor {
   public boolean visit(VariableDeclarationFragment node) {
     node.getName().accept(this);
     String name = nameStack.pop();
-    Value alloca = builder.BuildAlloca(typeStack.pop().type(), name);
+    Value alloca = builder.buildAlloca(typeStack.pop().type(), name);
     valueStack.push(alloca);
     namedValues.put(name, alloca);
 
     if (node.getInitializer() != null) {
       node.getInitializer().accept(this);
-      builder.BuildStore(valueStack.pop(), valueStack.pop());
+      builder.buildStore(valueStack.pop(), valueStack.pop());
     }
     return false;
   }

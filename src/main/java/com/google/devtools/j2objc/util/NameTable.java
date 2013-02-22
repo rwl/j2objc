@@ -23,6 +23,7 @@ import com.google.devtools.j2objc.Options;
 import com.google.devtools.j2objc.types.IOSTypeBinding;
 import com.google.devtools.j2objc.types.Types;
 
+import org.bridj.Pointer;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -44,6 +45,8 @@ import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.llvm.TypeRef;
+import org.llvm.binding.LLVMLibrary.LLVMTypeRef;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -53,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import llvm.TypeRef;
 
 /**
  * Singleton service for type/method/variable name support.
@@ -317,15 +319,15 @@ public class NameTable {
   }
 
   private static final Map<String, TypeRef> llvmPrimitiveMap = ImmutableMap.<String, TypeRef>builder()
-      .put("int", TypeRef.Int32Type())
-      .put("float", TypeRef.FloatType())
-      .put("double", TypeRef.DoubleType())
-      .put("void", TypeRef.VoidType())
-      .put("boolean", TypeRef.Int1Type())
-      .put("byte", TypeRef.Int8Type())
-      .put("char", TypeRef.Int16Type())
-      .put("short", TypeRef.Int16Type())
-      .put("long", TypeRef.Int64Type()).build();
+      .put("int", TypeRef.int32Type())
+      .put("float", TypeRef.floatType())
+      .put("double", TypeRef.doubleType())
+      .put("void", TypeRef.voidType())
+      .put("boolean", TypeRef.int1Type())
+      .put("byte", TypeRef.int8Type())
+      .put("char", TypeRef.int16Type())
+      .put("short", TypeRef.int16Type())
+      .put("long", TypeRef.int64Type()).build();
 
   private static TypeRef primitiveTypeToLLVM(String javaName) {
     TypeRef llvmType = llvmPrimitiveMap.get(javaName);
@@ -394,7 +396,13 @@ public class NameTable {
     if (type.isPrimitive()) {
       return primitiveTypeToLLVM(type.getName());
     }
-    throw new AssertionError("todo");
+    return TypeRef.opaqueType();
+//    if (type.getQualifiedName().equals("java.lang.String")) {
+//      return TypeRef.structType(
+//          TypeRef.int8Type().pointerType(0),
+//          TypeRef.int8Type().pointerType(0),
+//          TypeRef.int32Type());
+//    }
   }
 
   /**
