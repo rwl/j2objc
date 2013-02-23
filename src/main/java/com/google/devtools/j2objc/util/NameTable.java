@@ -16,14 +16,14 @@
 
 package com.google.devtools.j2objc.util;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.devtools.j2objc.Options;
-import com.google.devtools.j2objc.types.IOSTypeBinding;
-import com.google.devtools.j2objc.types.Types;
+import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
 
-import org.bridj.Pointer;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -46,15 +46,13 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.llvm.TypeRef;
-import org.llvm.binding.LLVMLibrary.LLVMTypeRef;
 
-import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.devtools.j2objc.Options;
+import com.google.devtools.j2objc.types.IOSTypeBinding;
+import com.google.devtools.j2objc.types.Types;
 
 
 /**
@@ -72,6 +70,8 @@ public class NameTable {
   public static final String ID_TYPE = "id";
 
   private static final Logger logger = Logger.getLogger(NameTable.class.getName());
+
+  public static TypeRef OPAQUE_TYPE = TypeRef.opaqueType().pointerType();
 
   /**
    * The list of predefined types, common primitive typedefs, constants and
@@ -396,13 +396,7 @@ public class NameTable {
     if (type.isPrimitive()) {
       return primitiveTypeToLLVM(type.getName());
     }
-    return TypeRef.opaqueType();
-//    if (type.getQualifiedName().equals("java.lang.String")) {
-//      return TypeRef.structType(
-//          TypeRef.int8Type().pointerType(0),
-//          TypeRef.int8Type().pointerType(0),
-//          TypeRef.int32Type());
-//    }
+    return OPAQUE_TYPE;
   }
 
   /**

@@ -138,12 +138,12 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
 
   private void printMainMethod(MethodDeclaration m, String typeName) {
     TypeRef ty_i32 = TypeRef.intType(32);
-    TypeRef ty_i8pp = TypeRef.intType(8).pointerType(0).pointerType(0);
+    TypeRef ty_i8pp = TypeRef.intType(8).pointerType().pointerType();
     TypeRef ty_func = TypeRef.functionType(ty_i32, ty_i32, ty_i8pp);
 
     Value f_main = mod.addFunction("main", ty_func.type());
     f_main.addFunctionAttr(LLVMAttribute.LLVMNoUnwindAttribute);
-    //f_main.addFunctionAttr(LLVMAttribute.LLVMUWTable);
+    f_main.addFunctionAttr(LLVMAttribute.LLVMUWTable);
 
 //    Value fuz = Value.constString("fuz", 3, false);
 //    mod.addGlobal( , ".objc_str");
@@ -197,7 +197,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void generateStatement(Statement stmt, boolean asFunction) {
-    SSAGenerator.generate(stmt, irBuilder, namedValues, asFunction);
+    SSAGenerator.generate(stmt, mod, irBuilder, namedValues, asFunction);
   }
 
   @Override

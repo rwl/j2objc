@@ -21,8 +21,10 @@ import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.llvm.Builder;
+import org.llvm.Module;
 import org.llvm.TypeRef;
 import org.llvm.Value;
+import org.llvm.binding.LLVMLibrary.LLVMLinkage;
 
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.ErrorReportingASTVisitor;
@@ -33,6 +35,7 @@ public class SSAGenerator extends ErrorReportingASTVisitor {
 
   private final boolean asFunction;
   private final Builder builder;
+  private final Module mod;
 
   private final Map<String, Value> namedValues;
 
@@ -40,8 +43,8 @@ public class SSAGenerator extends ErrorReportingASTVisitor {
   private final Stack<TypeRef> typeStack = new Stack<TypeRef>();
   private final Stack<String> nameStack = new Stack<String>();
 
-  public static void generate(ASTNode node, Builder builder, Map<String, Value> namedValues, boolean asFunction) {
-    SSAGenerator generator = new SSAGenerator(node, builder, namedValues, asFunction);
+  public static void generate(ASTNode node, Module mod, Builder builder, Map<String, Value> namedValues, boolean asFunction) {
+    SSAGenerator generator = new SSAGenerator(node, mod, builder, namedValues, asFunction);
     generator.run(node);
 
     assert generator.valueStack.size() == 0: "value stack: " + generator.valueStack.size();
@@ -49,12 +52,13 @@ public class SSAGenerator extends ErrorReportingASTVisitor {
     assert generator.nameStack.size() == 0: "name stack: " + generator.nameStack.size();
   }
 
-  public SSAGenerator(ASTNode node, Builder builder, Map<String, Value> namedValues, boolean asFunction) {
+  public SSAGenerator(ASTNode node, Module mod, Builder builder, Map<String, Value> namedValues, boolean asFunction) {
     CompilationUnit unit = null;
     if (node != null && node.getRoot() instanceof CompilationUnit) {
       unit = (CompilationUnit) node.getRoot();
     }
     this.asFunction = asFunction;
+    this.mod = mod;
     this.builder = builder;
     this.namedValues = namedValues;
   }
@@ -76,8 +80,24 @@ public class SSAGenerator extends ErrorReportingASTVisitor {
 
   @Override
   public boolean visit(StringLiteral node) {
-    String s = UnicodeUtils.escapeStringLiteral(node.getEscapedValue());
-    Value.constString(s, s.length(), false);
+    String s = node.getLiteralValue();//UnicodeUtils.escapeStringLiteral(node.getLiteralValue());
+
+    Value str = builder.buildGlobalStringPtr(s, "");
+
+    Value obj_str = mod.addGlobal(TypeRef.structType(
+        TypeRef.int8Type().pointerType(0),
+        TypeRef.int8Type().pointerType(0),
+        TypeRef.int32Type()), ".objc_str");
+    obj_str.setLinkage(LLVMLinkage.LLVMInternalLinkage);
+    obj_str.setInitializer(Value.constStruct(
+        TypeRef.int8Type().pointerType().constNull(),
+        str,
+        TypeRef.int32Type().constInt(s.length(), true)));
+
+    Value bitcast = builder.buildBitCast(obj_str, NameTable.OPAQUE_TYPE.type(), "");
+
+    valueStack.push(bitcast);
+
     return false;
   }
 
