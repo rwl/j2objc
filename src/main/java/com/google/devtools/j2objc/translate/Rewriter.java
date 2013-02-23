@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.devtools.j2objc.sym.Symbols;
 import com.google.devtools.j2objc.types.GeneratedMethodBinding;
+import com.google.devtools.j2objc.types.GeneratedTypeBinding;
 import com.google.devtools.j2objc.types.GeneratedVariableBinding;
 import com.google.devtools.j2objc.types.IOSArrayTypeBinding;
 import com.google.devtools.j2objc.types.IOSMethodBinding;
@@ -42,6 +43,7 @@ import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
@@ -56,6 +58,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.LabeledStatement;
@@ -66,6 +69,7 @@ import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -74,6 +78,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
@@ -238,8 +243,9 @@ public class Rewriter extends ErrorReportingASTVisitor {
     String name = binding.getName();
     renameReservedNames(name, binding);
 
-    @SuppressWarnings("unchecked")
-    List<SingleVariableDeclaration> params = node.parameters();
+    handleCompareToMethod(node, binding);
+
+    List<SingleVariableDeclaration> params = getParameters(node);
     for (int i = 0; i < params.size(); i++) {
       // Change the names of any parameters that are type qualifier keywords.
       SingleVariableDeclaration param = params.get(i);
@@ -250,6 +256,58 @@ public class Rewriter extends ErrorReportingASTVisitor {
       }
     }
     return true;
+  }
+
+  /**
+   * Adds an instanceof check to compareTo methods. This helps Comparable types
+   * behave well in sorted collections which rely on Java's runtime type
+   * checking.
+   */
+  private void handleCompareToMethod(MethodDeclaration node, IMethodBinding binding) {
+    if (!binding.getName().equals("compareTo") || node.getBody() == null) {
+      return;
+    }
+    ITypeBinding comparableType =
+        Types.findInterface(binding.getDeclaringClass(), "java.lang.Comparable");
+    if (comparableType == null) {
+      return;
+    }
+    ITypeBinding[] typeArguments = comparableType.getTypeArguments();
+    ITypeBinding[] parameterTypes = binding.getParameterTypes();
+    if (typeArguments.length != 1 || parameterTypes.length != 1
+        || !typeArguments[0].isEqualTo(parameterTypes[0])) {
+      return;
+    }
+
+    AST ast = node.getAST();
+    IVariableBinding param = Types.getVariableBinding(getParameters(node).get(0));
+
+    Expression nullCheck = ASTFactory.createNullCheck(ast, param, false);
+    Expression instanceofExpr = ASTFactory.newInstanceofExpression(
+        ast, ASTFactory.newSimpleName(ast, param), Types.makeType(typeArguments[0]));
+    instanceofExpr = ASTFactory.newPrefixExpression(
+        ast, PrefixExpression.Operator.NOT, instanceofExpr, "boolean");
+
+    ITypeBinding cceType = GeneratedTypeBinding.newTypeBinding(
+        "java.lang.ClassCastException", ast.resolveWellKnownType("java.lang.RuntimeException"),
+        false);
+    ClassInstanceCreation newCce = ast.newClassInstanceCreation();
+    newCce.setType(Types.makeType(cceType));
+    Types.addBinding(newCce, new GeneratedMethodBinding(
+        "ClassCastException", 0, cceType, cceType, true, false, false));
+
+    ThrowStatement throwStmt = ast.newThrowStatement();
+    throwStmt.setExpression(newCce);
+
+    Block ifBlock = ast.newBlock();
+    getStatements(ifBlock).add(throwStmt);
+
+    IfStatement ifStmt = ast.newIfStatement();
+    ifStmt.setExpression(ASTFactory.newInfixExpression(
+        ast, nullCheck, InfixExpression.Operator.CONDITIONAL_AND, instanceofExpr, "boolean"));
+    ifStmt.setThenStatement(ifBlock);
+
+    getStatements(node.getBody()).add(0, ifStmt);
   }
 
   @Override
@@ -345,69 +403,6 @@ public class Rewriter extends ErrorReportingASTVisitor {
           List<IExtendedModifier> initMods = staticInitializer.modifiers(); // safe by definition
           initMods.add(ast.newModifier(ModifierKeyword.STATIC_KEYWORD));
           classMembers.add(indexOfNewMember++, staticInitializer);
-        }
-      }
-    }
-    return true;
-  }
-
-  @Override
-  public boolean visit(Block node) {
-    // split array declarations so that initializers are in separate statements.
-    List<Statement> stmts = getStatements(node);
-    int n = stmts.size();
-    for (int i = 0; i < n; i++) {
-      Statement s = stmts.get(i);
-      if (s instanceof VariableDeclarationStatement) {
-        VariableDeclarationStatement var = (VariableDeclarationStatement) s;
-        Map<VariableDeclarationFragment, Expression> initializers = Maps.newLinkedHashMap();
-        @SuppressWarnings("unchecked")
-        List<VariableDeclarationFragment> fragments = var.fragments();
-        for (VariableDeclarationFragment fragment : fragments) {
-          ITypeBinding varType = Types.getTypeBinding(fragment);
-          if (varType.isArray()) {
-            fragment.setExtraDimensions(0);
-            Expression initializer = fragment.getInitializer();
-            if (initializer != null) {
-              initializers.put(fragment, initializer);
-              if (initializer instanceof ArrayCreation) {
-                ArrayCreation creator = (ArrayCreation) initializer;
-                if (creator.getInitializer() != null) {
-                  // replace this redundant array creation node with its
-                  // rewritten initializer
-                  initializer = creator.getInitializer();
-                } else {
-                  continue;
-                }
-              }
-              if (initializer instanceof ArrayInitializer) {
-                fragment.setInitializer(createIOSArrayInitializer(
-                    Types.getTypeBinding(fragment), (ArrayInitializer) initializer));
-              }
-            }
-          }
-        }
-      } else if (s instanceof ExpressionStatement &&
-          ((ExpressionStatement) s).getExpression() instanceof Assignment) {
-        Assignment assign = (Assignment) ((ExpressionStatement) s).getExpression();
-        ITypeBinding assignType = Types.getTypeBinding(assign);
-        if (assign.getRightHandSide() instanceof ArrayInitializer) {
-          ArrayInitializer arrayInit = (ArrayInitializer) assign.getRightHandSide();
-          assert assignType.isArray() : "array initializer assigned to non-array";
-          assign.setRightHandSide(
-              createIOSArrayInitializer(assignType, arrayInit));
-        } else if (assign.getRightHandSide() instanceof ArrayCreation) {
-          ArrayCreation arrayCreate = (ArrayCreation) assign.getRightHandSide();
-          ArrayInitializer arrayInit = arrayCreate.getInitializer();
-          if (arrayInit != null) {
-            // Replace ArrayCreation node with its initializer.
-            AST ast = node.getAST();
-            Assignment newAssign = ast.newAssignment();
-            Types.addBinding(newAssign, assignType);
-            newAssign.setLeftHandSide(NodeCopier.copySubtree(ast, assign.getLeftHandSide()));
-            newAssign.setRightHandSide(createIOSArrayInitializer(assignType, arrayInit));
-            ((ExpressionStatement) s).setExpression(newAssign);
-          }
         }
       }
     }
@@ -587,7 +582,7 @@ public class Rewriter extends ErrorReportingASTVisitor {
     VariableDeclarationExpression indexDecl = ASTFactory.newVariableDeclarationExpression(
         ast, indexVariable, ASTFactory.newNumberLiteral(ast, "0", "int"));
     InfixExpression loopCondition = ASTFactory.newInfixExpression(
-        ast, indexVariable, InfixExpression.Operator.LESS, sizeVariable);
+        ast, indexVariable, InfixExpression.Operator.LESS, sizeVariable, "boolean");
     PostfixExpression incrementExpr = ASTFactory.newPostfixExpression(
         ast, indexVariable, PostfixExpression.Operator.INCREMENT);
 
@@ -644,12 +639,88 @@ public class Rewriter extends ErrorReportingASTVisitor {
     return block;
   }
 
+  @Override
+  public void endVisit(InfixExpression node) {
+    InfixExpression.Operator op = node.getOperator();
+    ITypeBinding type = Types.getTypeBinding(node);
+    ITypeBinding lhsType = Types.getTypeBinding(node.getLeftOperand());
+    ITypeBinding rhsType = Types.getTypeBinding(node.getRightOperand());
+    if (Types.isJavaStringType(type) && op == InfixExpression.Operator.PLUS
+        && !Types.isJavaStringType(lhsType) && !Types.isJavaStringType(rhsType)) {
+      // String concatenation where the first two operands are not strings.
+      // We move all the preceding non-string operands into a sub-expression.
+      AST ast = node.getAST();
+      ITypeBinding nonStringExprType = getAdditionType(ast, lhsType, rhsType);
+      InfixExpression nonStringExpr = ast.newInfixExpression();
+      InfixExpression stringExpr = ast.newInfixExpression();
+      nonStringExpr.setOperator(InfixExpression.Operator.PLUS);
+      stringExpr.setOperator(InfixExpression.Operator.PLUS);
+      nonStringExpr.setLeftOperand(NodeCopier.copySubtree(ast, node.getLeftOperand()));
+      nonStringExpr.setRightOperand(NodeCopier.copySubtree(ast, node.getRightOperand()));
+      List<Expression> extendedOperands = getExtendedOperands(node);
+      List<Expression> nonStringOperands = getExtendedOperands(nonStringExpr);
+      List<Expression> stringOperands = getExtendedOperands(stringExpr);
+      boolean foundStringType = false;
+      for (Expression expr : extendedOperands) {
+        Expression copiedExpr = NodeCopier.copySubtree(ast, expr);
+        ITypeBinding exprType = Types.getTypeBinding(expr);
+        if (foundStringType || Types.isJavaStringType(exprType)) {
+          if (foundStringType) {
+            stringOperands.add(copiedExpr);
+          } else {
+            stringExpr.setRightOperand(copiedExpr);
+          }
+          foundStringType = true;
+        } else {
+          nonStringOperands.add(copiedExpr);
+          nonStringExprType = getAdditionType(ast, nonStringExprType, exprType);
+        }
+      }
+      Types.addBinding(nonStringExpr, nonStringExprType);
+      stringExpr.setLeftOperand(nonStringExpr);
+      Types.addBinding(stringExpr, ast.resolveWellKnownType("java.lang.String"));
+      ClassConverter.setProperty(node, stringExpr);
+    }
+  }
+
+  private ITypeBinding getAdditionType(AST ast, ITypeBinding aType, ITypeBinding bType) {
+    ITypeBinding doubleType = ast.resolveWellKnownType("double");
+    ITypeBinding boxedDoubleType = ast.resolveWellKnownType("java.lang.Double");
+    if (aType == doubleType || bType == doubleType
+        || aType == boxedDoubleType || bType == boxedDoubleType) {
+      return doubleType;
+    }
+    ITypeBinding floatType = ast.resolveWellKnownType("float");
+    ITypeBinding boxedFloatType = ast.resolveWellKnownType("java.lang.Float");
+    if (aType == floatType || bType == floatType
+        || aType == boxedFloatType || bType == boxedFloatType) {
+      return floatType;
+    }
+    ITypeBinding longType = ast.resolveWellKnownType("long");
+    ITypeBinding boxedLongType = ast.resolveWellKnownType("java.lang.Long");
+    if (aType == longType || bType == longType
+        || aType == boxedLongType || bType == boxedLongType) {
+      return longType;
+    }
+    return ast.resolveWellKnownType("int");
+  }
+
   /**
    * Helper method to isolate the unchecked warning.
    */
   @SuppressWarnings("unchecked")
   private static List<Statement> getStatements(Block block) {
     return block.statements();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<SingleVariableDeclaration> getParameters(MethodDeclaration method) {
+    return method.parameters();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Expression> getExtendedOperands(InfixExpression expr) {
+    return expr.extendedOperands();
   }
 
   /**
@@ -698,6 +769,18 @@ public class Rewriter extends ErrorReportingASTVisitor {
     return true;
   }
 
+  @Override
+  public void endVisit(ArrayInitializer node) {
+    ASTNode nodeToReplace = node;
+    ASTNode parent = node.getParent();
+    if (parent instanceof ArrayCreation) {
+      // replace this redundant array creation node with its rewritten initializer.
+      nodeToReplace = parent;
+    }
+    ITypeBinding type = Types.getTypeBinding(node);
+    ClassConverter.setProperty(nodeToReplace, createIOSArrayInitializer(type, node));
+  }
+
   /**
    * Convert an array initializer into a init method on the equivalent
    * IOSArray. This init method takes a C array and count, like
@@ -740,15 +823,6 @@ public class Rewriter extends ErrorReportingASTVisitor {
     @SuppressWarnings("unchecked")
     List<Expression> args = message.arguments(); // safe by definition
     ArrayInitializer newArrayInit = NodeCopier.copySubtree(ast, arrayInit);
-    @SuppressWarnings("unchecked")
-    List<Expression> exprs = newArrayInit.expressions();
-    for (int i = 0; i < exprs.size(); i++) {
-      // Convert any elements that are also array initializers.
-      Expression expr = exprs.get(i);
-      if (expr instanceof ArrayInitializer) {
-        exprs.set(i, createIOSArrayInitializer(componentType, (ArrayInitializer) expr));
-      }
-    }
     args.add(newArrayInit);
     GeneratedVariableBinding argBinding = new GeneratedVariableBinding(arrayType,
         false, true, null, methodBinding);
@@ -829,13 +903,11 @@ public class Rewriter extends ErrorReportingASTVisitor {
     Type paramType = NodeCopier.copySubtree(ast, type);
     param.setType(paramType);
     Types.addBinding(paramType, type.resolveBinding());
-    @SuppressWarnings("unchecked")
-    List<SingleVariableDeclaration> parameters = accessor.parameters(); // safe by definition
     GeneratedVariableBinding paramBinding = new GeneratedVariableBinding(paramName, 0,
         type.resolveBinding(), false, true, varBinding.getDeclaringClass(), binding);
     Types.addBinding(param, paramBinding);
     Types.addBinding(param.getName(), paramBinding);
-    parameters.add(param);
+    getParameters(accessor).add(param);
     binding.addParameter(paramBinding);
 
     Assignment assign = ast.newAssignment();
@@ -1075,7 +1147,8 @@ public class Rewriter extends ErrorReportingASTVisitor {
           case 't':
           case 'T':
           case 'n':
-            result.append('%'); // and fall-through
+            result.append('%');
+            // falls through
           default:
             result.append(part.charAt(0));
         }
@@ -1124,10 +1197,8 @@ public class Rewriter extends ErrorReportingASTVisitor {
     superInvocation.setName(NodeCopier.copySubtree(ast, method.getName()));
 
     @SuppressWarnings("unchecked")
-    List<SingleVariableDeclaration> parameters = method.parameters(); // safe by design
-    @SuppressWarnings("unchecked")
     List<Expression> args = superInvocation.arguments();  // safe by definition
-    for (SingleVariableDeclaration param : parameters) {
+    for (SingleVariableDeclaration param : getParameters(method)) {
       Expression arg = NodeCopier.copySubtree(ast, param.getName());
       args.add(arg);
     }
@@ -1156,8 +1227,6 @@ public class Rewriter extends ErrorReportingASTVisitor {
     List<Modifier> modifiers = method.modifiers();
     modifiers.add(ast.newModifier(ModifierKeyword.PUBLIC_KEYWORD));
 
-    @SuppressWarnings("unchecked")
-    List<SingleVariableDeclaration> parameters = method.parameters(); // safe by design
     ITypeBinding[] parameterTypes = interfaceMethod.getParameterTypes();
     for (int i = 0; i < parameterTypes.length; i++) {
       ITypeBinding paramType = parameterTypes[i];
@@ -1170,7 +1239,7 @@ public class Rewriter extends ErrorReportingASTVisitor {
       param.setName(ast.newSimpleName(paramName));
       Types.addBinding(param.getName(), paramBinding);
       param.setType(Types.makeType(paramType));
-      parameters.add(param);
+      getParameters(method).add(param);
     }
     Symbols.scanAST(method);
     return method;

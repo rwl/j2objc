@@ -89,7 +89,9 @@ public class NameTable {
       "struct", "typedef", "union", "volatile",
 
       // C++ keywords
-      "template", "mutable", "not", "delete",
+      "asm", "const_cast", "delete", "dynamic_cast", "friend", "explicit", "mutable", "namespace",
+      "not", "operator", "reinterpret_cast", "static_cast", "template", "typeid", "typename",
+      "using", "virtual",
 
       // variables
       "self", "isa",
@@ -141,6 +143,9 @@ public class NameTable {
 
       // Core Foundation definitions
       "BIG_ENDIAN", "BYTE_ORDER", "LITTLE_ENDIAN", "PDP_ENDIAN",
+
+      // Common preprocessor definitions.
+      "DEBUG", "NDEBUG",
 
       // Foundation methods with conflicting return types
       "scale");

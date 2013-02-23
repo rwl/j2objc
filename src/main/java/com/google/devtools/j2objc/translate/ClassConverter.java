@@ -27,12 +27,14 @@ import com.google.devtools.j2objc.util.TypeTrackingVisitor;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayCreation;
+import org.eclipse.jdt.core.dom.ArrayInitializer;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.ChildPropertyDescriptor;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
@@ -49,6 +51,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
@@ -296,6 +299,8 @@ public abstract class ClassConverter extends TypeTrackingVisitor {
       List<Expression> args;
       if (parent instanceof MethodInvocation) {
         args = ((MethodInvocation) parent).arguments();
+      } else if (parent instanceof ConstructorInvocation) {
+        args = ((ConstructorInvocation) parent).arguments();
       } else if (parent instanceof ClassInstanceCreation) {
         args = ((ClassInstanceCreation) parent).arguments();
       } else if (parent instanceof InfixExpression) {
@@ -310,6 +315,10 @@ public abstract class ClassConverter extends TypeTrackingVisitor {
         args = ((SuperConstructorInvocation) parent).arguments();
       } else if (parent instanceof ArrayCreation) {
         args = ((ArrayCreation) parent).dimensions();
+      } else if (parent instanceof ArrayInitializer) {
+        args = ((ArrayInitializer) parent).expressions();
+      } else if (parent instanceof EnumConstantDeclaration) {
+        args = ((EnumConstantDeclaration) parent).arguments();
       } else {
         throw new AssertionError("unknown parent node type: " + parent.getClass().getSimpleName());
       }
@@ -332,6 +341,8 @@ public abstract class ClassConverter extends TypeTrackingVisitor {
       List<Statement> args;
       if (parent instanceof Block) {
         args = ((Block) parent).statements();
+      } else if (parent instanceof SwitchStatement) {
+        args = ((SwitchStatement) parent).statements();
       } else {
         throw new AssertionError("unknown parent node type: " + parent.getClass().getSimpleName());
       }

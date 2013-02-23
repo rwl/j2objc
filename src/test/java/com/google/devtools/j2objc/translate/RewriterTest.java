@@ -18,7 +18,6 @@ package com.google.devtools.j2objc.translate;
 
 import com.google.devtools.j2objc.GenerationTest;
 import com.google.devtools.j2objc.J2ObjC;
-import com.google.devtools.j2objc.translate.DestructorGenerator;
 import com.google.devtools.j2objc.types.Types;
 
 import org.eclipse.jdt.core.dom.Assignment;
@@ -193,7 +192,7 @@ public class RewriterTest extends GenerationTest {
   public void testExistingStaticWriterDetected() {
     String source = "class Test { private static int foo;" +
         "public static void setFoo(int newFoo) { foo = newFoo; }}";
-    assertEquals(1, methodCount(source, "setFoo", new String[] { "int" } ));
+    assertEquals(1, methodCount(source, "setFoo", new String[] { "int" }));
   }
 
   private int methodCount(String source, String methodName, String[] paramTypes) {
@@ -402,7 +401,7 @@ public class RewriterTest extends GenerationTest {
 
     assertEquals("IOSIntArray a=IOSIntArray.arrayWithInts({1,2,3},3);",
         stmts.get(0).toString().trim());
-    assertEquals("IOSCharArray b=IOSCharArray.arrayWithCharacters({'4','5'},2);",
+    assertEquals("IOSCharArray b[]=IOSCharArray.arrayWithCharacters({'4','5'},2);",
       stmts.get(1).toString().trim());
   }
 
@@ -436,6 +435,22 @@ public class RewriterTest extends GenerationTest {
       }
     }
     assertTrue(foundInitStatements);
+  }
+
+  public void testNonStaticMultiDimArrayInitializer() throws IOException {
+    String translation = translateSourceFile(
+        "class Test { int[][] a = { { 1, 2, 3 } }; }", "Test", "Test.m");
+    assertTranslation(translation,
+        "[IOSObjectArray arrayWithObjects:(id[]){" +
+        " [IOSIntArray arrayWithInts:(int[]){ 1, 2, 3 } count:3] } count:1" +
+        " type:[IOSClass classWithClass:[IOSIntArray class]]]");
+  }
+
+  public void testArrayCreationInConstructorInvocation() throws IOException {
+    String translation = translateSourceFile(
+        "class Test { Test(int[] i) {} Test() { this(new int[] {}); } }", "Test", "Test.m");
+    assertTranslation(translation,
+        "[self initTestWithJavaLangIntegerArray:[IOSIntArray arrayWithInts:(int[]){  } count:0]]");
   }
 
   /**
@@ -573,5 +588,35 @@ public class RewriterTest extends GenerationTest {
     assertTranslation(translation,
         "unichar c = [((JavaLangCharacter *) [((id<JavaUtilIterator>) NIL_CHK(iter__)) next]) " +
         "charValue];");
+  }
+
+  public void testStaticArrayInitializerMove() throws IOException {
+    String source = "class Test { static final double[] EVERY_SIXTEENTH_FACTORIAL = " +
+        "{ 0x1.0p0, 0x1.30777758p44, 0x1.956ad0aae33a4p117, 0x1.ee69a78d72cb6p202, " +
+        "0x1.fe478ee34844ap295, 0x1.c619094edabffp394, 0x1.3638dd7bd6347p498, " +
+        "0x1.7cac197cfe503p605, 0x1.1e5dfc140e1e5p716, 0x1.8ce85fadb707ep829, " +
+        "0x1.95d5f3d928edep945 }; }";
+    String translation = translateSourceFile(source, "Test", "Test.m");
+    assertTranslation(translation, "{ 1.0, 2.0922789888E13, 2.631308369336935E35, " +
+        "1.2413915592536073E61, 1.2688693218588417E89, 7.156945704626381E118, " +
+        "9.916779348709496E149, 1.974506857221074E182, 3.856204823625804E215, " +
+        "5.5502938327393044E249, 4.7147236359920616E284 }");
+  }
+
+  public void testTypeCheckInCompareToMethod() throws IOException {
+    String translation = translateSourceFile(
+        "class Test implements Comparable<Test> { int i; " +
+        "  public int compareTo(Test t) { return i - t.i; } }", "Test", "Test.m");
+    assertTranslation(translation, "#import \"java/lang/ClassCastException.h\"");
+    assertTranslation(translation, "if (t != nil && ![t isKindOfClass:[Test class]])");
+    assertTranslation(translation,
+        "@throw [[[JavaLangClassCastException alloc] init] autorelease]");
+  }
+
+  public void testAdditionWithinStringConcatenation() throws IOException {
+    String translation = translateSourceFile(
+        "class Test { void test() { String s = 1 + 2.3f + \"foo\"; } }", "Test", "test.m");
+    assertTranslation(translation,
+        "NSString *s = [NSString stringWithFormat:@\"%ffoo\", 1 + 2.3f]");
   }
 }

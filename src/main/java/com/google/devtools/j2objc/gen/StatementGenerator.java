@@ -435,16 +435,15 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     @SuppressWarnings("unchecked")
     List<Expression> dimensions = node.dimensions(); // safe by definition
     ArrayInitializer init = node.getInitializer();
+    ITypeBinding componentType = Types.getTypeBinding(node).getComponentType();
     if (init != null) {
       // Create an expression like [IOSArrayInt arrayWithInts:(int[]){ 1, 2, 3 }].
-      ArrayType at = node.getType();
-      ITypeBinding componentType = Types.getTypeBinding(node).getComponentType();
 
       // New array needs to be retained if it's a new assignment, since the
       // arrayWith* methods return an autoreleased object.
       buffer.append('[');
-      String elementType = at.getElementType().toString();
-      buffer.append(elementType);
+      String arrayType = Types.resolveArrayType(componentType).toString();
+      buffer.append(arrayType);
       buffer.append(' ');
 
       IOSArrayTypeBinding iosArrayBinding = Types.resolveArrayType(componentType);
@@ -453,32 +452,32 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       printArrayLiteral(init);
       buffer.append(" count:");
       buffer.append(init.expressions().size());
-      if (elementType.equals("IOSObjectArray")) {
+      if (arrayType.equals("IOSObjectArray")) {
         buffer.append(" type:");
         printObjectArrayType(componentType);
       }
       buffer.append(']');
     } else if (node.dimensions().size() > 1) {
-      printMultiDimArray(Types.getTypeBinding(node).getElementType(), dimensions);
+      printMultiDimArray(componentType, dimensions);
     } else {
       assert dimensions.size() == 1;
-      printSingleDimArray(Types.getTypeBinding(node).getElementType(),
-          dimensions.get(0), useReferenceCounting);
+      printSingleDimArray(componentType, dimensions.get(0), useReferenceCounting);
     }
     return false;
   }
 
-  private void printSingleDimArray(ITypeBinding elementType, Expression size, boolean useRefCount) {
+  private void printSingleDimArray(
+      ITypeBinding componentType, Expression size, boolean useRefCount) {
     // Create an expression like [IOSArrayInt initWithLength:5] }.
     buffer.append(useRefCount ? "[[[" : "[[");
-    String arrayType = Types.resolveArrayType(elementType).toString();
+    String arrayType = Types.resolveArrayType(componentType).toString();
     buffer.append(arrayType);
     buffer.append(" alloc] ");
     buffer.append("initWithLength:");
     size.accept(this);
     if (arrayType.equals("IOSObjectArray")) {
       buffer.append(" type:");
-      printObjectArrayType(elementType);
+      printObjectArrayType(componentType);
     }
     buffer.append(']');
     if (useRefCount) {
@@ -490,9 +489,9 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
    * Prints a multi-dimensional array that is defined using array sizes,
    * rather than an initializer.  For example, "new int[2][3][4]".
    */
-  private void printMultiDimArray(ITypeBinding elementType, List<Expression> dimensions) {
+  private void printMultiDimArray(ITypeBinding componentType, List<Expression> dimensions) {
     if (dimensions.size() == 1) {
-      printSingleDimArray(elementType, dimensions.get(0), false);
+      printSingleDimArray(componentType, dimensions.get(0), false);
     } else {
       buffer.append("[IOSObjectArray arrayWithObjects:(id[]){ ");
       Expression dimension = dimensions.get(0);
@@ -511,7 +510,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       }
       List<Expression> subDimensions = dimensions.subList(1, dimensions.size());
       for (int i = 0; i < dim; i++) {
-        printMultiDimArray(elementType, subDimensions);
+        printMultiDimArray(componentType.getComponentType(), subDimensions);
         if (i + 1 < dim) {
           buffer.append(',');
         }
@@ -520,8 +519,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       buffer.append("} count:");
       dimension.accept(this);
       buffer.append(" type:[IOSClass classWithClass:[");
-      buffer.append(subDimensions.size() > 1 ? "IOSObjectArray" :
-          Types.resolveArrayType(elementType).toString());
+      buffer.append(Types.resolveArrayType(componentType.getComponentType()).toString());
       buffer.append(" class]]]");
     }
   }
@@ -626,8 +624,14 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       printArrayElementAssignment(lhs, rhs, op);
     } else if (op == Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN) {
       lhs.accept(this);
-      buffer.append(" = ");
-      printUnsignedRightShift(lhs, rhs);
+      ITypeBinding assignType = Types.getTypeBinding(lhs);
+      if (NameTable.getFullName(assignType).equals("unichar")) {
+        buffer.append(" >>= ");
+        rhs.accept(this);
+      } else {
+        buffer.append(" = ");
+        printUnsignedRightShift(lhs, rhs);
+      }
     } else if (op == Operator.ASSIGN) {
       IVariableBinding var = Types.getVariableBinding(lhs);
       boolean useWriter = false;
@@ -708,7 +712,8 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       // ... "withInt:(int) (((unsigned int) [arr intAtIndex:i]) >> j)]" for
       // unsigned right shift.
       String type = kind.toLowerCase();
-      if (op == Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN) {
+      boolean isSigned = !type.equals("char");
+      if (op == Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN && isSigned) {
         buffer.append("(");
         buffer.append(type);
         buffer.append(") (((unsigned ");
@@ -723,7 +728,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       aa.getIndex().accept(this);
       buffer.append(']');
       if (op == Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN) {
-        buffer.append(") >>");
+        buffer.append(isSigned ? ") >>" : " >>");
       } else {
         buffer.append(' ');
         String s = op.toString();
@@ -731,7 +736,7 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       }
       buffer.append(' ');
       rhs.accept(this);
-      if (op == Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN) {
+      if (op == Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN && isSigned) {
         buffer.append(')');
       }
     }
@@ -1123,14 +1128,16 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
   public boolean visit(InfixExpression node) {
     InfixExpression.Operator op = node.getOperator();
     ITypeBinding type = Types.getTypeBinding(node);
+    String typeName = NameTable.getFullName(type);
     if (Types.isJavaStringType(type) &&
         op.equals(InfixExpression.Operator.PLUS)) {
       printStringConcatenation(node.getLeftOperand(), node.getRightOperand(),
           node.extendedOperands());
-    } else if (op.equals(InfixExpression.Operator.RIGHT_SHIFT_UNSIGNED)) {
+    } else if (op.equals(InfixExpression.Operator.RIGHT_SHIFT_UNSIGNED) &&
+        !typeName.equals("unichar")) {
       printUnsignedRightShift(node.getLeftOperand(), node.getRightOperand());
     } else if (op.equals(InfixExpression.Operator.REMAINDER) && isFloatingPoint(node)) {
-      buffer.append(type.isEqualTo(node.getAST().resolveWellKnownType("float")) ? "fmodf" : "fmod");
+      buffer.append(typeName.equals("float") ? "fmodf" : "fmod");
       buffer.append('(');
       node.getLeftOperand().accept(this);
       buffer.append(", ");
@@ -1143,12 +1150,9 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       buffer.append(' ');
       node.getRightOperand().accept(this);
       final List<Expression> extendedOperands = node.extendedOperands();
-      if (extendedOperands.size() != 0) {
-        buffer.append(' ');
-        for (Iterator<Expression> it = extendedOperands.iterator(); it.hasNext(); ) {
-          buffer.append(node.getOperator().toString()).append(' ');
-          it.next().accept(this);
-        }
+      for (Iterator<Expression> it = extendedOperands.iterator(); it.hasNext(); ) {
+        buffer.append(' ').append(node.getOperator().toString()).append(' ');
+        it.next().accept(this);
       }
     }
     return false;
@@ -1283,7 +1287,10 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     assert (start == '\'' || start == '"');
     assert (start == end);
     s = s.substring(1, len - 1);
-    return s.replace("%", "%%");     // escape % character
+    if (s.equals("\"")) {
+      s = "\\\"";
+    }
+    return s.replace("%", "%%");     // escape % characters
   }
 
   private void printStringConcatenationArg(Expression arg) {
@@ -1299,16 +1306,30 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       buffer.append(buildStringFromChars(((StringLiteral) arg).getLiteralValue()));
       return;
     }
-    if (arg instanceof MethodInvocation) {
-      IMethodBinding methodBinding = Types.getMethodBinding(arg);
-      if (methodBinding.getName().equals("hash")) {
-        // "hash" in objective-c is declared to return NSUInteger.
-        buffer.append("(int) ");
-        arg.accept(this);
-        return;
-      }
+    if (stringConcatenationArgNeedsIntCast(arg)) {
+      // Some native objective-c methods are declared to return NSUInteger.
+      buffer.append("(int) ");
+      arg.accept(this);
+      return;
     }
     arg.accept(this);
+  }
+
+  private boolean stringConcatenationArgNeedsIntCast(Expression arg) {
+    if (arg instanceof MethodInvocation) {
+      MethodInvocation invocation = (MethodInvocation) arg;
+      String methodName = Types.getMethodBinding(invocation).getName();
+      if (methodName.equals("hash")) {
+        return true;
+      }
+      if (invocation.getExpression() != null) {
+        ITypeBinding callee = Types.mapType(Types.getTypeBinding(invocation.getExpression()));
+        if (callee.getName().equals("NSString") && methodName.equals("length")) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   @Override
@@ -1996,7 +2017,9 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
       Expression expr = node.getExpression();
       boolean isEnumConstant = Types.getTypeBinding(expr).isEnum();
       if (isEnumConstant) {
-        String bareTypeName = NameTable.getFullName(Types.getTypeBinding(expr)).replace("Enum", "");
+        String typeName = NameTable.getFullName(Types.getTypeBinding(expr));
+        String bareTypeName = typeName.endsWith("Enum") ?
+            typeName.substring(0, typeName.length() - 4) : typeName;
         buffer.append(bareTypeName).append("_");
       }
       if (isEnumConstant && expr instanceof SimpleName) {
