@@ -115,7 +115,7 @@ import java.util.Stack;
  *
  * @author Tom Ball
  */
-public class StatementGenerator extends ErrorReportingASTVisitor {
+public class StatementGenerator extends AbstractGenerator {
   private final SourceBuilder buffer;
   private final Set<IVariableBinding> fieldHiders;
   private final boolean asFunction;
@@ -169,17 +169,6 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
 
   private String getResult() {
     return buffer.toString();
-  }
-
-  private String getSimpleTypeName(ITypeBinding binding) {
-    if (binding == null) {
-      // Parse error already reported.
-      return "<unknown>";
-    }
-    if (binding.isPrimitive()) {
-      return Types.getPrimitiveTypeName(binding);
-    }
-    return Types.mapSimpleTypeName(NameTable.javaTypeToObjC(binding, true));
   }
 
   private void printArguments(IMethodBinding method, List<Expression> args) {
@@ -236,14 +225,6 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
     } else {
       arg.accept(this);
     }
-  }
-
-  private IOSMethod getIOSMethod(IMethodBinding method) {
-    if (method instanceof IOSMethodBinding) {
-      IMethodBinding delegate = ((IOSMethodBinding) method).getDelegate();
-      return Types.getMappedMethod(delegate);
-    }
-    return Types.getMappedMethod(method);
   }
 
   private void printArrayLiteral(ArrayInitializer arrayInit) {
@@ -317,10 +298,6 @@ public class StatementGenerator extends ErrorReportingASTVisitor {
         }
       }
     }
-  }
-
-  private boolean hasVarArgsTarget(IMethodBinding method) {
-    return method instanceof IOSMethodBinding && ((IOSMethodBinding) method).hasVarArgsTarget();
   }
 
   private void printNilCheck(Expression e, boolean needsCast) {

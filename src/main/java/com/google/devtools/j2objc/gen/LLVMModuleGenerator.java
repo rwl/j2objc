@@ -137,11 +137,11 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     if (!node.isInterface()) {
       String typeName = NameTable.getFullName(node);
       List<FieldDeclaration> fields = Lists.newArrayList(node.getFields());
-//      printStaticReferencesMethod(fields);
-//      printStaticVars(Lists.newArrayList(node.getFields()), /* isInterface */ false);
-//      printProperties(node.getFields());
+      //printStaticReferencesMethod(fields);
+      //printStaticVars(Lists.newArrayList(node.getFields()), /* isInterface */ false);
+      //printProperties(node.getFields());
       printMethods(node);
-//      printObjCTypeMethod(node);
+      //printObjCTypeMethod(node);
 
       // Generate main method, if declared.
       MethodDeclaration main = null;
@@ -175,9 +175,10 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     TypeRef ty_i8pp = TypeRef.intType(8).pointerType().pointerType();
     TypeRef ty_func = TypeRef.functionType(ty_i32, ty_i32, ty_i8pp);
 
-    Value f_main = mod.addFunction("main", ty_func.type());
+    Value f_main = mod.addFunction("main", ty_func);
     f_main.addFunctionAttr(LLVMAttribute.LLVMNoUnwindAttribute);
     f_main.addFunctionAttr(LLVMAttribute.LLVMUWTable);
+    f_main.addFunctionAttr(LLVMAttribute.LLVMStackProtectAttribute);
 
 //    Value fuz = Value.constString("fuz", 3, false);
 //    mod.addGlobal( , ".objc_str");
@@ -199,7 +200,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
 
     Value i1 = irBuilder.buildAlloca(ty_i32.type(), "i1");
     Value i2 = irBuilder.buildAlloca(ty_i32.type(), "i2");
-    Value i3 = irBuilder.buildAlloca(ty_i32.type(), "i3");
+    Value i3 = irBuilder.buildAlloca(ty_i8pp.type(), "i3");
 
     irBuilder.buildStore(ty_i32.constInt(0, true), i1);
     irBuilder.buildStore(argc, i2);
