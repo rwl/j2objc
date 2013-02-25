@@ -1,7 +1,11 @@
 package com.google.devtools.j2objc.gen;
 
+import java.io.File;
+import java.io.IOException;
+import java.text.ParseException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -17,14 +21,18 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.llvm.BasicBlock;
 import org.llvm.Builder;
+import org.llvm.ExecutionEngine;
+import org.llvm.LLVMException;
 import org.llvm.Module;
 import org.llvm.TypeRef;
 import org.llvm.Value;
 import org.llvm.binding.LLVMLibrary.LLVMAttribute;
+import org.llvm.binding.LLVMLibrary.LLVMVerifierFailureAction;
 import org.llvm.binding.LLVMLibrary.LLVMVisibility;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.J2ObjC.Language;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.NameTable;
@@ -88,6 +96,26 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     return suffix;
   }
 
+  @Override
+  protected void save(String path) {
+    try {
+      File outputFile = new File(getOutputDirectory(), path);
+      File dir = outputFile.getParentFile();
+      if (dir != null && !dir.exists()) {
+        if (!dir.mkdirs()) {
+          J2ObjC.warning("cannot create output directory: " + getOutputDirectory());
+        }
+      }
+
+      int retval = mod.writeBitcodeToFile(outputFile.getAbsolutePath());
+      if (retval != 0) {
+        J2ObjC.error("cannot write file: " + outputFile);
+      }
+    } finally {
+      reset();
+    }
+  }
+
   public void generate(CompilationUnit unit) {
     @SuppressWarnings("unchecked")
     List<AbstractTypeDeclaration> types = unit.types(); // safe by definition
@@ -96,7 +124,13 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
       newline();
       generate(type);
     }
-    save(unit);
+
+    try {
+      mod.verify();
+      save(unit);
+    } catch (LLVMException e) {
+      J2ObjC.error("module verification failed\n" + e.getMessage());
+    }
   }
 
   public void generate(TypeDeclaration node) {

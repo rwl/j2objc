@@ -201,4 +201,9 @@ public abstract class SourceFileGenerator {
   protected String getSourceFileName() {
     return sourceFileName;
   }
+
+  protected File getOutputDirectory() {
+    return outputDirectory;
+  }
+
 }
