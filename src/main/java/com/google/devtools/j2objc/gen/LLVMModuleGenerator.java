@@ -2,11 +2,9 @@ package com.google.devtools.j2objc.gen;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.ParseException;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-
 
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
@@ -19,19 +17,19 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.llvm.BasicBlock;
-import org.llvm.Builder;
-import org.llvm.ExecutionEngine;
-import org.llvm.LLVMException;
-import org.llvm.Module;
-import org.llvm.TypeRef;
-import org.llvm.Value;
-import org.llvm.binding.LLVMLibrary.LLVMAttribute;
-import org.llvm.binding.LLVMLibrary.LLVMVerifierFailureAction;
-import org.llvm.binding.LLVMLibrary.LLVMVisibility;
 
+import com.github.rwl.irbuilder.IRBuilder;
+import com.github.rwl.irbuilder.enums.AttrKind;
+import com.github.rwl.irbuilder.types.IType;
+import com.github.rwl.irbuilder.types.IntType;
+import com.github.rwl.irbuilder.types.NamedType;
+import com.github.rwl.irbuilder.types.OpaqueType;
+import com.github.rwl.irbuilder.values.IValue;
+import com.github.rwl.irbuilder.values.IntValue;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.J2ObjC.Language;
 import com.google.devtools.j2objc.types.Types;
@@ -45,27 +43,16 @@ import com.google.devtools.j2objc.util.NameTable;
 public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
 
   /**
-   * The LLVM construct that contains all of the functions and global
-   * variables in a piece of code.
-   */
-  private final Module mod;
-
-  /**
    * Helper object that makes it easy to generate LLVM instructions.
    */
-  private final Builder irBuilder;
+  private final IRBuilder irBuilder;
 
   /**
    * Keeps track of which values are defined in the current scope and what
    * their LLVM representation is. Method parameters will be in this map when
    * generating code for their method body.
    */
-  private final Map<String, Value> namedValues = Maps.newHashMap();
-
-  /**
-   * Static Single Assignment (SSA) registers
-   */
-//  private final List<Value> values = Lists.newArrayList();
+  private final Map<String, IValue> namedValues = Maps.newHashMap();
 
   /**
    * Suffix for LLVM byte-code file
@@ -80,14 +67,13 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     LLVMModuleGenerator moduleGenerator = new LLVMModuleGenerator(fileName,
         language, source, unit);
     moduleGenerator.generate(unit);
-    moduleGenerator.mod.dumpModule();
+    System.out.println(moduleGenerator.irBuilder.build());
   }
 
   public LLVMModuleGenerator(String sourceFileName, Language language,
       String source, CompilationUnit unit) {
     super(sourceFileName, source, unit, false);
-    mod = Module.createWithName(sourceFileName);
-    irBuilder = Builder.createBuilder();
+    irBuilder = new IRBuilder(sourceFileName);
     suffix = language.getSuffix();
   }
 
@@ -106,17 +92,24 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
           J2ObjC.warning("cannot create output directory: " + getOutputDirectory());
         }
       }
+      String source = irBuilder.build();
 
-      int retval = mod.writeBitcodeToFile(outputFile.getAbsolutePath());
-      if (retval != 0) {
-        J2ObjC.error("cannot write file: " + outputFile);
+      // Make sure file ends with a new-line.
+      if (!source.endsWith("\n")) {
+        source += '\n';
       }
+
+      Files.write(source, outputFile, Charset.defaultCharset());
+    } catch (IOException e) {
+      J2ObjC.error(e.getMessage());
     } finally {
       reset();
     }
   }
 
   public void generate(CompilationUnit unit) {
+    irBuilder.namedType(null, OpaqueType.INSTANCE);
+
     @SuppressWarnings("unchecked")
     List<AbstractTypeDeclaration> types = unit.types(); // safe by definition
 
@@ -125,12 +118,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
       generate(type);
     }
 
-    try {
-      mod.verify();
-      save(unit);
-    } catch (LLVMException e) {
-      J2ObjC.error("module verification failed\n" + e.getMessage());
-    }
+    save(unit);
   }
 
   public void generate(TypeDeclaration node) {
@@ -171,40 +159,27 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void printMainMethod(MethodDeclaration m, String typeName) {
-    TypeRef ty_i32 = TypeRef.intType(32);
-    TypeRef ty_i8pp = TypeRef.intType(8).pointerType().pointerType();
-    TypeRef ty_func = TypeRef.functionType(ty_i32, ty_i32, ty_i8pp);
-
-    Value f_main = mod.addFunction("main", ty_func);
-    f_main.addFunctionAttr(LLVMAttribute.LLVMNoUnwindAttribute);
-    f_main.addFunctionAttr(LLVMAttribute.LLVMUWTable);
-    f_main.addFunctionAttr(LLVMAttribute.LLVMStackProtectAttribute);
-
-//    Value fuz = Value.constString("fuz", 3, false);
-//    mod.addGlobal( , ".objc_str");
-//    TypeRef ty_int = TypeRef.int32Type();
-//    Value g = mod.addGlobal(ty_int, "globl");
-//    g.setVisibility(LLVMVisibility.LLVMHiddenVisibility);
-//
-//    TypeRef ty_opaque = TypeRef.structTypeNamed("");
-//    mod.addGlobal(ty_opaque, "opg");
-
-    Value argc = f_main.getParam(0);
-    argc.setValueName("argc");
-    Value argv = f_main.getParam(1);
-    argv.setValueName("argv");
-
-    BasicBlock bb = f_main.appendBasicBlock("entrypoint");
-
-    irBuilder.positionBuilderAtEnd(bb);
-
-    Value i1 = irBuilder.buildAlloca(ty_i32.type(), "i1");
-    Value i2 = irBuilder.buildAlloca(ty_i32.type(), "i2");
-    Value i3 = irBuilder.buildAlloca(ty_i8pp.type(), "i3");
-
-    irBuilder.buildStore(ty_i32.constInt(0, true), i1);
-    irBuilder.buildStore(argc, i2);
-    irBuilder.buildStore(argv, i3);
+    IType int8pp = IntType.INT_8.pointerTo().pointerTo();
+    irBuilder.beginFunction(IntType.INT_32, "main",
+        ImmutableList.<IType>builder()
+          .add(IntType.INT_32)
+          .add(int8pp)
+          .build(),
+        ImmutableList.<String>builder()
+          .add("argc")
+          .add("argv")
+          .build(),
+        ImmutableList.<AttrKind>builder()
+          //.add(AttrKind.NO_UNWIND)
+          .add(AttrKind.UWTABLE)
+          .add(AttrKind.STACK_PROTECT)
+          .build(), false)
+        .alloca(IntType.INT_32, "i1", null)
+        .alloca(IntType.INT_32, "i2", null)
+        .alloca(int8pp, "i3", null)
+        .store("i1", new IntValue(0))
+        .store("i2", "argc")
+        .store("i3", "argv");
 
     if (m != null) {
       @SuppressWarnings("unchecked")
@@ -213,7 +188,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
       printMethodBody(m, true);
     }
 
-    irBuilder.buildRet(ty_i32.constInt(0, true));
+    irBuilder.endFunction(new IntValue(0));
   }
 
   private void printMethodBody(MethodDeclaration m, boolean isFunction) throws AssertionError {
@@ -232,7 +207,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void generateStatement(Statement stmt, boolean asFunction) {
-    SSAGenerator.generate(stmt, mod, irBuilder, namedValues, asFunction);
+    SSAGenerator.generate(stmt, irBuilder, namedValues, asFunction);
   }
 
   @Override

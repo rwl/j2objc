@@ -45,8 +45,14 @@ import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
-import org.llvm.TypeRef;
 
+import com.github.rwl.irbuilder.types.DoubleType;
+import com.github.rwl.irbuilder.types.FloatType;
+import com.github.rwl.irbuilder.types.IType;
+import com.github.rwl.irbuilder.types.IntType;
+import com.github.rwl.irbuilder.types.NamedType;
+import com.github.rwl.irbuilder.types.OpaqueType;
+import com.github.rwl.irbuilder.types.VoidType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -71,7 +77,8 @@ public class NameTable {
 
   private static final Logger logger = Logger.getLogger(NameTable.class.getName());
 
-  public static TypeRef OPAQUE_TYPE = TypeRef.opaqueType().pointerType();
+//  public static IType OPAQUE_TYPE = OpaqueType.INSTANCE.pointerTo();
+  public static IType OPAQUE_TYPE = new NamedType("0", OpaqueType.INSTANCE).pointerTo();
 
   /**
    * The list of predefined types, common primitive typedefs, constants and
@@ -323,19 +330,20 @@ public class NameTable {
     return javaName;
   }
 
-  private static final Map<String, TypeRef> llvmPrimitiveMap = ImmutableMap.<String, TypeRef>builder()
-      .put("int", TypeRef.int32Type())
-      .put("float", TypeRef.floatType())
-      .put("double", TypeRef.doubleType())
-      .put("void", TypeRef.voidType())
-      .put("boolean", TypeRef.int1Type())
-      .put("byte", TypeRef.int8Type())
-      .put("char", TypeRef.int16Type())
-      .put("short", TypeRef.int16Type())
-      .put("long", TypeRef.int64Type()).build();
+  private static final Map<String, IType> llvmPrimitiveMap = ImmutableMap
+      .<String, IType>builder()
+        .put("int", IntType.INT_32)
+        .put("float", FloatType.INSTANCE)
+        .put("double", DoubleType.INSTANCE)
+        .put("void", VoidType.INSTANCE)
+        .put("boolean", IntType.INT_1)
+        .put("byte", IntType.INT_8)
+        .put("char", IntType.INT_16)
+        .put("short", IntType.INT_16)
+        .put("long", IntType.INT_64).build();
 
-  private static TypeRef primitiveTypeToLLVM(String javaName) {
-    TypeRef llvmType = llvmPrimitiveMap.get(javaName);
+  private static IType primitiveTypeToLLVM(String javaName) {
+    IType llvmType = llvmPrimitiveMap.get(javaName);
     assert llvmType != null: "invalid primitive type: " + javaName;
     return llvmType;
   }
@@ -397,7 +405,7 @@ public class NameTable {
     return typeName + " *";
   }
 
-  public static TypeRef javaRefToLLVM(ITypeBinding type) {
+  public static IType javaRefToLLVM(ITypeBinding type) {
     if (type.isPrimitive()) {
       return primitiveTypeToLLVM(type.getName());
     }

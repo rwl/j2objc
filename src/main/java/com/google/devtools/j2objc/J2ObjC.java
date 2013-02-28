@@ -97,7 +97,7 @@ public class J2ObjC {
   public enum Language {
     OBJECTIVE_C(".m"),
     OBJECTIVE_CPP(".mm"),
-    LLVM_BIT_CODE(".bc");
+    LLVM_BYTE_CODE(".ll");
 
     private final String suffix;
 
@@ -172,7 +172,7 @@ public class J2ObjC {
             filename, Options.getLanguage(), currentUnit, source);
 
         if (Options.emitLLVM()) {
-          LLVMModuleGenerator.generate(filename, Language.LLVM_BIT_CODE, source, currentUnit);
+          LLVMModuleGenerator.generate(filename, Language.LLVM_BYTE_CODE, source, currentUnit);
         }
       }
     } catch (ASTNodeException e) {
