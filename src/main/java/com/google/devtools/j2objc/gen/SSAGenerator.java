@@ -9,6 +9,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayInitializer;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Assignment.Operator;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -30,8 +31,7 @@ import com.github.rwl.irbuilder.types.IType;
 import com.github.rwl.irbuilder.types.IntType;
 import com.github.rwl.irbuilder.types.LongType;
 import com.github.rwl.irbuilder.types.NamedType;
-import com.github.rwl.irbuilder.types.StructType;
-import com.github.rwl.irbuilder.types.VoidType;
+import com.github.rwl.irbuilder.types.OpaqueType;
 import com.github.rwl.irbuilder.values.BitCast;
 import com.github.rwl.irbuilder.values.DoubleValue;
 import com.github.rwl.irbuilder.values.IValue;
@@ -42,18 +42,21 @@ import com.github.rwl.irbuilder.values.StringValue;
 import com.github.rwl.irbuilder.values.StructValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.devtools.j2objc.types.GeneratedMethodBinding;
 import com.google.devtools.j2objc.types.IOSArrayTypeBinding;
 import com.google.devtools.j2objc.types.IOSMethod;
 import com.google.devtools.j2objc.types.IOSMethodBinding;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.util.NamedTypes;
 
 public class SSAGenerator extends AbstractGenerator {
 
   private final boolean asFunction;
   private final IRBuilder builder;
+  private final NamedTypes namedTypes;
 
-  private final Map<String, IValue> namedValues;
+//  private final Map<String, NamedType> namedTypes;
 
   private final Stack<IValue> valueStack = new Stack<IValue>();
   private final Stack<IType> typeStack = new Stack<IType>();
@@ -62,11 +65,11 @@ public class SSAGenerator extends AbstractGenerator {
 //  private static IValue funcObjcLookupClass = null;
 //  private static IValue funcObjcMsgLookup = null;
 
-  private static NamedType structNSConstString = null;
+//  private static NamedType structNSConstString = null;
   private static ArrayType constStringClassRef = null;
 
-  public static void generate(ASTNode node, IRBuilder builder, Map<String, IValue> namedValues, boolean asFunction) {
-    SSAGenerator generator = new SSAGenerator(node, builder, namedValues, asFunction);
+  public static void generate(ASTNode node, IRBuilder builder, Map<String, NamedType> namedTypes, boolean asFunction) {
+    SSAGenerator generator = new SSAGenerator(node, builder, namedTypes, asFunction);
     generator.run(node);
 
     assert generator.valueStack.size() == 0: "value stack: " + generator.valueStack.size();
@@ -74,14 +77,14 @@ public class SSAGenerator extends AbstractGenerator {
     assert generator.nameStack.size() == 0: "name stack: " + generator.nameStack.size();
   }
 
-  public SSAGenerator(ASTNode node, IRBuilder builder, Map<String, IValue> namedValues, boolean asFunction) {
+  public SSAGenerator(ASTNode node, IRBuilder builder, Map<String, NamedType> namedTypes, boolean asFunction) {
     CompilationUnit unit = null;
     if (node != null && node.getRoot() instanceof CompilationUnit) {
       unit = (CompilationUnit) node.getRoot();
     }
     this.asFunction = asFunction;
     this.builder = builder;
-    this.namedValues = namedValues;
+    this.namedTypes = new NamedTypes(builder);
   }
 
   private List<IValue> buildArguments(IMethodBinding method, List<Expression> args) {
@@ -227,6 +230,28 @@ public class SSAGenerator extends AbstractGenerator {
 
   @SuppressWarnings("unchecked")
   @Override
+  public boolean visit(ClassInstanceCreation node) {
+    ITypeBinding type = Types.getTypeBinding(node.getType());
+    ITypeBinding outerType = type.getDeclaringClass();
+//    NameTable.getFullName(type);
+    IMethodBinding method = Types.getMethodBinding(node);
+    List<Expression> arguments = node.arguments();
+    if (node.getExpression() != null && type.isMember() && arguments.size() > 0 &&
+        !Types.getTypeBinding(arguments.get(0)).isEqualTo(outerType)) {
+      // This is calling an untranslated "Outer.new Inner()" method,
+      // so update its binding and arguments as if it had been translated.
+      GeneratedMethodBinding newBinding = new GeneratedMethodBinding(method);
+      newBinding.addParameter(0, outerType);
+      method = newBinding;
+      arguments = Lists.newArrayList(node.arguments());
+      arguments.add(0, node.getExpression());
+    }
+    List<IValue> args = buildArguments(method, arguments);
+    return false;
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
   public boolean visit(MethodInvocation node) {
     String methodName = NameTable.getName(node.getName());
     IMethodBinding binding = Types.getMethodBinding(node);
@@ -241,7 +266,7 @@ public class SSAGenerator extends AbstractGenerator {
       for (Iterator<Expression> it = node.arguments().iterator(); it.hasNext();) {
         Expression expr = it.next();
         ITypeBinding typeBinding = Types.getTypeBinding(expr);
-        final IType llvmType = NameTable.javaRefToLLVM(typeBinding);
+        final IType llvmType = javaRefToLLVM(typeBinding);
         typeStack.push(llvmType);
 
         expr.accept(this);
@@ -253,7 +278,7 @@ public class SSAGenerator extends AbstractGenerator {
         }
         argVals.add(valueStack.pop());
       }
-      builder.functionDecl(NameTable.javaRefToLLVM(binding.getReturnType()),
+      builder.functionDecl(javaRefToLLVM(binding.getReturnType()),
           methodName, paramTypes, null, binding.isVarargs());
       builder.call(methodName, argVals);
     } else {
@@ -310,13 +335,10 @@ public class SSAGenerator extends AbstractGenerator {
 
   @Override
   public boolean visit(StringLiteral node) {
-    if (structNSConstString == null) {
-      buildStructNSConstString();
-    }
     if (constStringClassRef == null) {
       buildConstStringClassRef();
     }
-    String s = node.getLiteralValue();//UnicodeUtils.escapeStringLiteral(node.getLiteralValue());
+    String s = node.getLiteralValue();
 
     String strName = builder.uniqueGlobalName(".str");
     StringValue strVal = new StringValue(s);
@@ -327,29 +349,17 @@ public class SSAGenerator extends AbstractGenerator {
        new IntValue(1992),
        new PointerValue(strName, (ArrayType) strVal.type()),
        new LongValue(s.length())
-    }, structNSConstString);
+    }, namedTypes.getStructNSConstString());
 
     String unamed = builder.uniqueGlobalName("_unamed_cfstring_");
     builder.constant(unamed, struct, null, false);
 
-    IValue bitcast = new BitCast(new PointerValue(structNSConstString, unamed),
-        NameTable.OPAQUE_TYPE);
+    IValue bitcast = new BitCast(new PointerValue(namedTypes.getStructNSConstString(),
+        unamed), namedTypes.getOpaqueType());
 
     valueStack.push(bitcast);
 
     return false;
-  }
-
-  private void buildStructNSConstString() {
-    IType[] types = new IType[] {
-        IntType.INT_32.pointerTo(),
-        IntType.INT_32,
-        IntType.INT_8.pointerTo(),
-        IntType.INT_64
-    };
-    structNSConstString = new NamedType("struct.NSConstantString",
-        new StructType(types));
-    builder.namedType(structNSConstString);
   }
 
   private void buildConstStringClassRef() {
@@ -380,7 +390,7 @@ public class SSAGenerator extends AbstractGenerator {
     assert !vars.isEmpty();
 
     ITypeBinding binding = Types.getTypeBinding(vars.get(0));
-    final IType llvmType = NameTable.javaRefToLLVM(binding);
+    final IType llvmType = javaRefToLLVM(binding);
     typeStack.push(llvmType);
 
     for (Iterator<VariableDeclarationFragment> it = vars.iterator(); it.hasNext(); ) {
@@ -395,6 +405,14 @@ public class SSAGenerator extends AbstractGenerator {
     // All Initializer nodes should have been converted during initialization
     // normalization.
     throw new AssertionError("initializer node not converted");
+  }
+
+  private IType javaRefToLLVM(ITypeBinding binding) {
+    IType type = NameTable.javaRefToLLVM(binding);
+    if (type.equals(OpaqueType.INSTANCE)) {
+      type = namedTypes.getOpaqueType();
+    }
+    return type;
   }
 
 }

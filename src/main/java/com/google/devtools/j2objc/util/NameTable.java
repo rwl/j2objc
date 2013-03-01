@@ -77,9 +77,6 @@ public class NameTable {
 
   private static final Logger logger = Logger.getLogger(NameTable.class.getName());
 
-//  public static IType OPAQUE_TYPE = OpaqueType.INSTANCE.pointerTo();
-  public static IType OPAQUE_TYPE = new NamedType("0", OpaqueType.INSTANCE).pointerTo();
-
   /**
    * The list of predefined types, common primitive typedefs, constants and
    * variables.
@@ -412,7 +409,7 @@ public class NameTable {
     if (Types.isJavaVoidType(type)) {
       return VoidType.INSTANCE;
     }
-    return OPAQUE_TYPE;
+    return OpaqueType.INSTANCE;
   }
 
   /**

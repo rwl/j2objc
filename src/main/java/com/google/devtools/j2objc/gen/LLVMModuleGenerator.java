@@ -20,10 +20,13 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import com.github.rwl.irbuilder.IRBuilder;
 import com.github.rwl.irbuilder.enums.AttrKind;
+import com.github.rwl.irbuilder.types.ArrayType;
+import com.github.rwl.irbuilder.types.FunctionType;
 import com.github.rwl.irbuilder.types.IType;
 import com.github.rwl.irbuilder.types.IntType;
 import com.github.rwl.irbuilder.types.NamedType;
 import com.github.rwl.irbuilder.types.OpaqueType;
+import com.github.rwl.irbuilder.types.StructType;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
 import com.google.common.collect.ImmutableList;
@@ -47,12 +50,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
    */
   private final IRBuilder irBuilder;
 
-  /**
-   * Keeps track of which values are defined in the current scope and what
-   * their LLVM representation is. Method parameters will be in this map when
-   * generating code for their method body.
-   */
-  private final Map<String, IValue> namedValues = Maps.newHashMap();
+//  private final Map<String, NamedType> namedTypes = Maps.newHashMap();
 
   /**
    * Suffix for LLVM byte-code file
@@ -108,8 +106,6 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   public void generate(CompilationUnit unit) {
-    irBuilder.namedType(null, OpaqueType.INSTANCE);
-
     @SuppressWarnings("unchecked")
     List<AbstractTypeDeclaration> types = unit.types(); // safe by definition
 
@@ -207,7 +203,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void generateStatement(Statement stmt, boolean asFunction) {
-    SSAGenerator.generate(stmt, irBuilder, namedValues, asFunction);
+    SSAGenerator.generate(stmt, irBuilder, null/*, namedTypes*/, asFunction);
   }
 
   @Override
