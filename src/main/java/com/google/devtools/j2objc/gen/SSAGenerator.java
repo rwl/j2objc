@@ -27,6 +27,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import com.github.rwl.irbuilder.IRBuilder;
 import com.github.rwl.irbuilder.enums.Linkage;
 import com.github.rwl.irbuilder.types.ArrayType;
+import com.github.rwl.irbuilder.types.FunctionType;
 import com.github.rwl.irbuilder.types.IType;
 import com.github.rwl.irbuilder.types.IntType;
 import com.github.rwl.irbuilder.types.LongType;
@@ -278,8 +279,8 @@ public class SSAGenerator extends AbstractGenerator {
         }
         argVals.add(valueStack.pop());
       }
-      builder.functionDecl(javaRefToLLVM(binding.getReturnType()),
-          methodName, paramTypes, null, binding.isVarargs());
+      builder.functionDecl(methodName, new FunctionType(javaRefToLLVM(binding
+          .getReturnType()), paramTypes), null, binding.isVarargs());
       builder.call(methodName, argVals);
     } else {
       if (binding instanceof IOSMethodBinding) {

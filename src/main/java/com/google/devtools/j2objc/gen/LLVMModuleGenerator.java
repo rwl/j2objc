@@ -156,11 +156,11 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
 
   private void printMainMethod(MethodDeclaration m, String typeName) {
     IType int8pp = IntType.INT_8.pointerTo().pointerTo();
-    irBuilder.beginFunction(IntType.INT_32, "main",
-        ImmutableList.<IType>builder()
+    irBuilder.beginFunction("main",
+        new FunctionType(IntType.INT_32, ImmutableList.<IType>builder()
           .add(IntType.INT_32)
           .add(int8pp)
-          .build(),
+          .build()),
         ImmutableList.<String>builder()
           .add("argc")
           .add("argv")
