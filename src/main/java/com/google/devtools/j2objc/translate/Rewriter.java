@@ -963,8 +963,10 @@ public class Rewriter extends ErrorReportingASTVisitor {
           // Change System.out.* or System.err.* to NSLog
           AST ast = node.getAST();
           MethodInvocation newInvocation = ast.newMethodInvocation();
+          IMethodBinding originalBinding = Types.getMethodBinding(node);
           IMethodBinding methodBinding = new IOSMethodBinding("NSLog",
-              Types.getMethodBinding(node), null);
+              originalBinding, null, ast.resolveWellKnownType("java.lang.Void"),
+              originalBinding.isVarargs());
           Types.addBinding(newInvocation, methodBinding);
           Types.addFunction(methodBinding);
           newInvocation.setName(ast.newSimpleName("NSLog"));

@@ -409,6 +409,9 @@ public class NameTable {
     if (type.isPrimitive()) {
       return primitiveTypeToLLVM(type.getName());
     }
+    if (Types.isJavaVoidType(type)) {
+      return VoidType.INSTANCE;
+    }
     return OPAQUE_TYPE;
   }
 

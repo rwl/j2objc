@@ -236,14 +236,9 @@ public class SSAGenerator extends AbstractGenerator {
     ITypeBinding receiverType = receiver != null ? Types.getTypeBinding(receiver) : null;
 
     if (Types.isFunction(binding)) {
-      //methodName;
-      //"(";
-      int narg = node.arguments().size();
-      //IType[] paramTypes = new IType[narg - (binding.isVarargs() ? 1 : 0)];
       List<IType> paramTypes = Lists.newArrayList();
       List<IValue> argVals = Lists.newArrayList();
-      int i = 0;
-      for (Iterator<Expression> it = node.arguments().iterator(); it.hasNext(); i++) {
+      for (Iterator<Expression> it = node.arguments().iterator(); it.hasNext();) {
         Expression expr = it.next();
         ITypeBinding typeBinding = Types.getTypeBinding(expr);
         final IType llvmType = NameTable.javaRefToLLVM(typeBinding);
@@ -258,21 +253,10 @@ public class SSAGenerator extends AbstractGenerator {
         }
         argVals.add(valueStack.pop());
       }
-      builder.functionDecl(VoidType.INSTANCE, methodName, paramTypes,
-          null, binding.isVarargs());
+      builder.functionDecl(NameTable.javaRefToLLVM(binding.getReturnType()),
+          methodName, paramTypes, null, binding.isVarargs());
       builder.call(methodName, argVals);
-//      IType returnType = VoidType.INSTANCE;//NameTable.javaRefToLLVM(binding.getReturnType());
-//      IType funcType = builder.beginFunction(returnType, binding.isVarargs(), paramTypes);
-//      builder.beginFunction(methodName, funcType);
-//
-//      builder.call(func, "", argVals);
     } else {
-//      if (funcObjcLookupClass == null) {
-//        buildFuncObjcLookupClass();
-//      }
-//      if (funcObjcMsgLookup == null) {
-//        buildFuncObjcMsgLookup();
-//      }
       if (binding instanceof IOSMethodBinding) {
         //binding.getName();
       } else {
@@ -283,20 +267,6 @@ public class SSAGenerator extends AbstractGenerator {
     }
     return false;
   }
-
-//  private void buildFuncObjcLookupClass() {
-//    IType ty_i8p = IntType.INT_8.pointerTo();
-//    IType.functionType(ty_i8p, true, ty_i8p);
-//
-//    funcObjcLookupClass = builder.addFunction("objc_lookup_class", ty_func);
-//  }
-//
-//  private void buildFuncObjcMsgLookup() {
-//    TypeRef ty_i8p = TypeRef.intType(8).pointerType();
-//    TypeRef ty_func = TypeRef.functionType(ty_i8p, ty_i8p, ty_i8p);
-//
-//    funcObjcMsgLookup = mod.addFunction("objc_msg_lookup", ty_func);
-//  }
 
   @Override
   public boolean visit(NumberLiteral node) {
