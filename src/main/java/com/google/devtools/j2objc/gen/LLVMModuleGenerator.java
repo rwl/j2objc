@@ -20,6 +20,7 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import com.github.rwl.irbuilder.IRBuilder;
 import com.github.rwl.irbuilder.enums.AttrKind;
+import com.github.rwl.irbuilder.enums.Linkage;
 import com.github.rwl.irbuilder.types.ArrayType;
 import com.github.rwl.irbuilder.types.FunctionType;
 import com.github.rwl.irbuilder.types.IType;
@@ -27,6 +28,7 @@ import com.github.rwl.irbuilder.types.IntType;
 import com.github.rwl.irbuilder.types.NamedType;
 import com.github.rwl.irbuilder.types.OpaqueType;
 import com.github.rwl.irbuilder.types.StructType;
+import com.github.rwl.irbuilder.values.ArrayValue;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
 import com.google.common.collect.ImmutableList;
@@ -51,6 +53,8 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   private final IRBuilder irBuilder;
 
 //  private final Map<String, NamedType> namedTypes = Maps.newHashMap();
+
+  private final List<IValue> llvmUsed = Lists.newArrayList();
 
   /**
    * Suffix for LLVM byte-code file
@@ -112,6 +116,11 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     for (AbstractTypeDeclaration type : types) {
       newline();
       generate(type);
+    }
+
+    if (llvmUsed.size() > 0) {
+      irBuilder.global("llvm.used", new ArrayValue(IntType.INT_8.pointerTo(),
+          llvmUsed), Linkage.APPENDING, false);
     }
 
     save(unit);
@@ -187,7 +196,8 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     irBuilder.endFunction(new IntValue(0));
   }
 
-  private void printMethodBody(MethodDeclaration m, boolean isFunction) throws AssertionError {
+  private void printMethodBody(MethodDeclaration m, boolean isFunction)
+      throws AssertionError {
     for (Object stmt : m.getBody().statements()) {
       if (stmt instanceof Statement) {
         generateStatement((Statement) stmt, isFunction);
@@ -203,7 +213,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void generateStatement(Statement stmt, boolean asFunction) {
-    SSAGenerator.generate(stmt, irBuilder, null/*, namedTypes*/, asFunction);
+    SSAGenerator.generate(stmt, irBuilder, llvmUsed, asFunction);
   }
 
   @Override

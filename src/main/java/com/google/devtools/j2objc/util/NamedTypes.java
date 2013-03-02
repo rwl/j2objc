@@ -32,6 +32,7 @@ public class NamedTypes {
   public static final String IVAR_LIST_T_NAME = "struct._ivar_list_t";
   public static final String IVAR_T_NAME = "struct._ivar_t";
   public static final String NS_CONSTANT_STRING_NAME = "struct.NSConstantString";
+  public static final String MESSAGE_REF_NAME = "struct._message_ref_t";
 
   public NamedTypes(IRBuilder irBuilder) {
     this.irBuilder = irBuilder;
@@ -253,6 +254,21 @@ public class NamedTypes {
       irBuilder.namedType(ivarT);
     }
     return ivarT;
+  }
+
+  public NamedType getMessageRef() {
+    NamedType messageRef = namedTypes.get(NamedTypes.MESSAGE_REF_NAME);
+    if (messageRef == null) {
+      IType[] types = new IType[] {
+          IntType.INT_8.pointerTo(),
+          IntType.INT_8.pointerTo()
+      };
+      messageRef = new NamedType(NamedTypes.MESSAGE_REF_NAME,
+          new StructType(types));
+      namedTypes.put(NamedTypes.MESSAGE_REF_NAME, messageRef);
+      irBuilder.namedType(messageRef);
+    }
+    return messageRef;
   }
 
 }

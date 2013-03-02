@@ -2,7 +2,6 @@ package com.google.devtools.j2objc.gen;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Stack;
 
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -31,14 +30,13 @@ import com.github.rwl.irbuilder.types.FunctionType;
 import com.github.rwl.irbuilder.types.IType;
 import com.github.rwl.irbuilder.types.IntType;
 import com.github.rwl.irbuilder.types.LongType;
-import com.github.rwl.irbuilder.types.NamedType;
 import com.github.rwl.irbuilder.types.OpaqueType;
 import com.github.rwl.irbuilder.values.BitCast;
 import com.github.rwl.irbuilder.values.DoubleValue;
+import com.github.rwl.irbuilder.values.GlobalValue;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
 import com.github.rwl.irbuilder.values.LongValue;
-import com.github.rwl.irbuilder.values.PointerValue;
 import com.github.rwl.irbuilder.values.StringValue;
 import com.github.rwl.irbuilder.values.StructValue;
 import com.google.common.collect.ImmutableList;
@@ -59,18 +57,25 @@ public class SSAGenerator extends AbstractGenerator {
 
 //  private final Map<String, NamedType> namedTypes;
 
+  private final List<IValue> llvmUsed;
+
   private final Stack<IValue> valueStack = new Stack<IValue>();
   private final Stack<IType> typeStack = new Stack<IType>();
   private final Stack<String> nameStack = new Stack<String>();
 
-//  private static IValue funcObjcLookupClass = null;
-//  private static IValue funcObjcMsgLookup = null;
+  private static GlobalValue constStringClassRef = null;
 
-//  private static NamedType structNSConstString = null;
-  private static ArrayType constStringClassRef = null;
+  private static final String STR_NAME = ".str";
+  private static final String UNAMED_CF_STRING_NAME = "_unamed_cfstring_";
+  private static final String CONST_STRING_CLASS_REF_NAME = "__CFConstantStringClassReference";
+  private static final String OBJC_CLASS_LIST_REFERENCES_NAME = "\"\01L_OBJC_CLASSLIST_REFERENCES_$_\"";
+  private static final String OBJC_METH_VAR_NAME_NAME = "\"\01L_OBJC_METH_VAR_NAME_\"";
+  private static final String OBJC_SEL_REFERENCES_NAME = "\"\01L_OBJC_SELECTOR_REFERENCES_\"";
 
-  public static void generate(ASTNode node, IRBuilder builder, Map<String, NamedType> namedTypes, boolean asFunction) {
-    SSAGenerator generator = new SSAGenerator(node, builder, namedTypes, asFunction);
+  public static void generate(ASTNode node, IRBuilder builder,
+      List<IValue> llvmUsed, boolean asFunction) {
+    SSAGenerator generator = new SSAGenerator(node, builder, llvmUsed,
+        asFunction);
     generator.run(node);
 
     assert generator.valueStack.size() == 0: "value stack: " + generator.valueStack.size();
@@ -78,7 +83,8 @@ public class SSAGenerator extends AbstractGenerator {
     assert generator.nameStack.size() == 0: "name stack: " + generator.nameStack.size();
   }
 
-  public SSAGenerator(ASTNode node, IRBuilder builder, Map<String, NamedType> namedTypes, boolean asFunction) {
+  public SSAGenerator(ASTNode node, IRBuilder builder, List<IValue> llvmUsed,
+      boolean asFunction) {
     CompilationUnit unit = null;
     if (node != null && node.getRoot() instanceof CompilationUnit) {
       unit = (CompilationUnit) node.getRoot();
@@ -86,6 +92,7 @@ public class SSAGenerator extends AbstractGenerator {
     this.asFunction = asFunction;
     this.builder = builder;
     this.namedTypes = new NamedTypes(builder);
+    this.llvmUsed = llvmUsed;
   }
 
   private List<IValue> buildArguments(IMethodBinding method, List<Expression> args) {
@@ -234,7 +241,7 @@ public class SSAGenerator extends AbstractGenerator {
   public boolean visit(ClassInstanceCreation node) {
     ITypeBinding type = Types.getTypeBinding(node.getType());
     ITypeBinding outerType = type.getDeclaringClass();
-//    NameTable.getFullName(type);
+    String fullName = NameTable.getFullName(type);
     IMethodBinding method = Types.getMethodBinding(node);
     List<Expression> arguments = node.arguments();
     if (node.getExpression() != null && type.isMember() && arguments.size() > 0 &&
@@ -247,7 +254,15 @@ public class SSAGenerator extends AbstractGenerator {
       arguments = Lists.newArrayList(node.arguments());
       arguments.add(0, node.getExpression());
     }
+
+    GlobalValue objcClass = builder.global(String.format("OBJC_CLASS_$_%s",
+        fullName), namedTypes.getClassT(), Linkage.EXTERNAL, false);
+    GlobalValue objcClassListRefs = builder.global(OBJC_CLASS_LIST_REFERENCES_NAME,
+        objcClass, Linkage.INTERNAL, false);
+    llvmUsed.add(new BitCast(objcClassListRefs, IntType.INT_8));
+
     List<IValue> args = buildArguments(method, arguments);
+
     return false;
   }
 
@@ -336,37 +351,34 @@ public class SSAGenerator extends AbstractGenerator {
 
   @Override
   public boolean visit(StringLiteral node) {
-    if (constStringClassRef == null) {
-      buildConstStringClassRef();
-    }
     String s = node.getLiteralValue();
 
-    String strName = builder.uniqueGlobalName(".str");
-    StringValue strVal = new StringValue(s);
-    builder.constant(strName, strVal, Linkage.LINKER_PRIVATE, true);
+    GlobalValue str = builder.constant(STR_NAME, new StringValue(s),
+        Linkage.LINKER_PRIVATE, true);
 
     StructValue struct = new StructValue(new IValue[] {
-       new PointerValue("__CFConstantStringClassReference", constStringClassRef),
+       getConstStringClassRef(),
        new IntValue(1992),
-       new PointerValue(strName, (ArrayType) strVal.type()),
+       str,
        new LongValue(s.length())
     }, namedTypes.getStructNSConstString());
 
-    String unamed = builder.uniqueGlobalName("_unamed_cfstring_");
-    builder.constant(unamed, struct, null, false);
+    GlobalValue unamed = builder.constant(UNAMED_CF_STRING_NAME, struct,
+        null, false);
 
-    IValue bitcast = new BitCast(new PointerValue(namedTypes.getStructNSConstString(),
-        unamed), namedTypes.getOpaqueType());
+    IValue bitcast = new BitCast(unamed, namedTypes.getOpaqueType());
 
     valueStack.push(bitcast);
 
     return false;
   }
 
-  private void buildConstStringClassRef() {
-    constStringClassRef = new ArrayType(IntType.INT_32, 0);
-    builder.global("__CFConstantStringClassReference",
-        constStringClassRef, null, Linkage.EXTERNAL, false);
+  private GlobalValue getConstStringClassRef() {
+    if (constStringClassRef == null) {
+      constStringClassRef = builder.global(CONST_STRING_CLASS_REF_NAME,
+          new ArrayType(IntType.INT_32, 0), Linkage.EXTERNAL, false);
+    }
+    return constStringClassRef;
   }
 
   @Override
