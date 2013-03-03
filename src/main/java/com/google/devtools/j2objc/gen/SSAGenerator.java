@@ -24,6 +24,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 import com.github.rwl.irbuilder.IRBuilder;
+import com.github.rwl.irbuilder.enums.AttrKind;
 import com.github.rwl.irbuilder.enums.Linkage;
 import com.github.rwl.irbuilder.types.ArrayType;
 import com.github.rwl.irbuilder.types.FunctionType;
@@ -33,7 +34,7 @@ import com.github.rwl.irbuilder.types.LongType;
 import com.github.rwl.irbuilder.types.OpaqueType;
 import com.github.rwl.irbuilder.values.BitCast;
 import com.github.rwl.irbuilder.values.DoubleValue;
-import com.github.rwl.irbuilder.values.GlobalValue;
+import com.github.rwl.irbuilder.values.GlobalVariable;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
 import com.github.rwl.irbuilder.values.LongValue;
@@ -63,14 +64,18 @@ public class SSAGenerator extends AbstractGenerator {
   private final Stack<IType> typeStack = new Stack<IType>();
   private final Stack<String> nameStack = new Stack<String>();
 
-  private static GlobalValue constStringClassRef = null;
+  private static GlobalVariable constStringClassRef = null;
+
+  private GlobalVariable objcMsgSend = null;
+
+  private static final String OBJC_MSG_SEND = "objc_msgSend";
 
   private static final String STR_NAME = ".str";
   private static final String UNAMED_CF_STRING_NAME = "_unamed_cfstring_";
   private static final String CONST_STRING_CLASS_REF_NAME = "__CFConstantStringClassReference";
-  private static final String OBJC_CLASS_LIST_REFERENCES_NAME = "\"\01L_OBJC_CLASSLIST_REFERENCES_$_\"";
-  private static final String OBJC_METH_VAR_NAME_NAME = "\"\01L_OBJC_METH_VAR_NAME_\"";
-  private static final String OBJC_SEL_REFERENCES_NAME = "\"\01L_OBJC_SELECTOR_REFERENCES_\"";
+  private static final String OBJC_CLASS_LIST_REFERENCES_NAME = "\"\\01L_OBJC_CLASSLIST_REFERENCES_$_\"";
+  private static final String OBJC_METH_VAR_NAME_NAME = "\"\\01L_OBJC_METH_VAR_NAME_\"";
+  private static final String OBJC_SEL_REFERENCES_NAME = "\"\\01L_OBJC_SELECTOR_REFERENCES_\"";
 
   public static void generate(ASTNode node, IRBuilder builder,
       List<IValue> llvmUsed, boolean asFunction) {
@@ -255,15 +260,40 @@ public class SSAGenerator extends AbstractGenerator {
       arguments.add(0, node.getExpression());
     }
 
-    GlobalValue objcClass = builder.global(String.format("OBJC_CLASS_$_%s",
+    GlobalVariable objcClass = builder.global(String.format("\"OBJC_CLASS_$_%s\"",
         fullName), namedTypes.getClassT(), Linkage.EXTERNAL, false);
-    GlobalValue objcClassListRefs = builder.global(OBJC_CLASS_LIST_REFERENCES_NAME,
+    GlobalVariable objcClassListRefs = builder.global(OBJC_CLASS_LIST_REFERENCES_NAME,
         objcClass, Linkage.INTERNAL, false);
-    llvmUsed.add(new BitCast(objcClassListRefs, IntType.INT_8));
+
+    GlobalVariable objcMethVarName = builder.global(OBJC_METH_VAR_NAME_NAME,
+        new StringValue(method.getName() + ':'), Linkage.INTERNAL, false);
+    GlobalVariable objcSelRefs = builder.global(OBJC_SEL_REFERENCES_NAME,
+        objcMethVarName, Linkage.INTERNAL, false);
+
+    IValue objcClassListRefsLocal = builder.load(objcClassListRefs, null);
+    IValue objcSelRefsLocal = builder.load(objcSelRefs, null);
+    builder.bitcast(objcClassListRefsLocal, IntType.INT_8P, null);
 
     List<IValue> args = buildArguments(method, arguments);
 
+    IType methType = new FunctionType(IntType.INT_8P, IntType.INT_8P,
+        IntType.INT_8P, namedTypes.getOpaqueType()).pointerTo();
+    builder.call(new BitCast(getObjcMsgSend(), methType), args, null);
+
+    llvmUsed.add(new BitCast(objcClassListRefs, IntType.INT_8P));
+    llvmUsed.add(objcMethVarName);
+    llvmUsed.add(new BitCast(objcSelRefs, IntType.INT_8P));
     return false;
+  }
+
+  private GlobalVariable getObjcMsgSend() {
+    if (objcMsgSend == null) {
+      FunctionType funcType = new FunctionType(IntType.INT_8P,
+          Lists.newArrayList(IntType.INT_8P, IntType.INT_8P), true);
+      objcMsgSend = builder.functionDecl(OBJC_MSG_SEND, funcType,
+          AttrKind.NON_LAZY_BIND);
+    }
+    return objcMsgSend;
   }
 
   @SuppressWarnings("unchecked")
@@ -294,9 +324,10 @@ public class SSAGenerator extends AbstractGenerator {
         }
         argVals.add(valueStack.pop());
       }
-      builder.functionDecl(methodName, new FunctionType(javaRefToLLVM(binding
-          .getReturnType()), paramTypes), null, binding.isVarargs());
-      builder.call(methodName, argVals);
+      GlobalVariable methVar = builder.functionDecl(methodName,
+          new FunctionType(javaRefToLLVM(binding.getReturnType()), paramTypes,
+              binding.isVarargs()));
+      builder.call(methVar, argVals, null);
     } else {
       if (binding instanceof IOSMethodBinding) {
         //binding.getName();
@@ -353,7 +384,7 @@ public class SSAGenerator extends AbstractGenerator {
   public boolean visit(StringLiteral node) {
     String s = node.getLiteralValue();
 
-    GlobalValue str = builder.constant(STR_NAME, new StringValue(s),
+    GlobalVariable str = builder.constant(STR_NAME, new StringValue(s),
         Linkage.LINKER_PRIVATE, true);
 
     StructValue struct = new StructValue(new IValue[] {
@@ -363,7 +394,7 @@ public class SSAGenerator extends AbstractGenerator {
        new LongValue(s.length())
     }, namedTypes.getStructNSConstString());
 
-    GlobalValue unamed = builder.constant(UNAMED_CF_STRING_NAME, struct,
+    GlobalVariable unamed = builder.constant(UNAMED_CF_STRING_NAME, struct,
         null, false);
 
     IValue bitcast = new BitCast(unamed, namedTypes.getOpaqueType());
@@ -373,7 +404,7 @@ public class SSAGenerator extends AbstractGenerator {
     return false;
   }
 
-  private GlobalValue getConstStringClassRef() {
+  private GlobalVariable getConstStringClassRef() {
     if (constStringClassRef == null) {
       constStringClassRef = builder.global(CONST_STRING_CLASS_REF_NAME,
           new ArrayType(IntType.INT_32, 0), Linkage.EXTERNAL, false);

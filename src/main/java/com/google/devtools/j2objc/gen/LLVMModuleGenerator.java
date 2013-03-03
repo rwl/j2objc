@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
@@ -25,15 +24,12 @@ import com.github.rwl.irbuilder.types.ArrayType;
 import com.github.rwl.irbuilder.types.FunctionType;
 import com.github.rwl.irbuilder.types.IType;
 import com.github.rwl.irbuilder.types.IntType;
-import com.github.rwl.irbuilder.types.NamedType;
-import com.github.rwl.irbuilder.types.OpaqueType;
-import com.github.rwl.irbuilder.types.StructType;
 import com.github.rwl.irbuilder.values.ArrayValue;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
+import com.github.rwl.irbuilder.values.LocalVariable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.J2ObjC.Language;
@@ -119,8 +115,9 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     }
 
     if (llvmUsed.size() > 0) {
-      irBuilder.global("llvm.used", new ArrayValue(IntType.INT_8.pointerTo(),
-          llvmUsed), Linkage.APPENDING, false);
+      irBuilder.global("llvm.used", new ArrayValue(new ArrayType(IntType
+          .INT_8.pointerTo(), llvmUsed.size()), llvmUsed), Linkage.APPENDING,
+          false);
     }
 
     save(unit);
@@ -164,12 +161,8 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void printMainMethod(MethodDeclaration m, String typeName) {
-    IType int8pp = IntType.INT_8.pointerTo().pointerTo();
-    irBuilder.beginFunction("main",
-        new FunctionType(IntType.INT_32, ImmutableList.<IType>builder()
-          .add(IntType.INT_32)
-          .add(int8pp)
-          .build()),
+    LocalVariable[] argVars = irBuilder.beginFunction("main",
+        new FunctionType(IntType.INT_32, IntType.INT_32, IntType.INT_8PP),
         ImmutableList.<String>builder()
           .add("argc")
           .add("argv")
@@ -178,13 +171,13 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
           //.add(AttrKind.NO_UNWIND)
           .add(AttrKind.UWTABLE)
           .add(AttrKind.STACK_PROTECT)
-          .build(), false)
-        .alloca(IntType.INT_32, "i1", null)
-        .alloca(IntType.INT_32, "i2", null)
-        .alloca(int8pp, "i3", null)
-        .store("i1", new IntValue(0))
-        .store("i2", "argc")
-        .store("i3", "argv");
+          .build());
+    LocalVariable i1 = irBuilder.alloca(IntType.INT_32, null, null);
+    LocalVariable i2 = irBuilder.alloca(IntType.INT_32, null, null);
+    LocalVariable i3 = irBuilder.alloca(IntType.INT_8PP, null, null);
+    irBuilder.store(i1, new IntValue(0))
+        .store(i2, argVars[0])
+        .store(i3, argVars[1]);
 
     if (m != null) {
       @SuppressWarnings("unchecked")

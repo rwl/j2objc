@@ -10,6 +10,7 @@ import com.github.rwl.irbuilder.types.IntType;
 import com.github.rwl.irbuilder.types.NamedType;
 import com.github.rwl.irbuilder.types.OpaqueType;
 import com.github.rwl.irbuilder.types.StructType;
+import com.github.rwl.irbuilder.types.VoidType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -56,7 +57,7 @@ public class NamedTypes {
       IType[] types = new IType[] {
           IntType.INT_32.pointerTo(),
           IntType.INT_32,
-          IntType.INT_8.pointerTo(),
+          IntType.INT_8P,
           IntType.INT_64
       };
       structNSConstString = new NamedType(NamedTypes
@@ -71,17 +72,18 @@ public class NamedTypes {
     NamedType classT = namedTypes.get(NamedTypes.CLASS_T_NAME);
     if (classT == null) {
       OpaqueType opaque = new OpaqueType();
+      IType int8p = IntType.INT_8P;
       IType[] types = new IType[] {
           opaque.pointerTo(),
           opaque.pointerTo(),
           getObjcCache().pointerTo(),
-          new FunctionType(IntType.INT_8.pointerTo(), Lists.<IType>newArrayList(
-              IntType.INT_8.pointerTo(),
-              IntType.INT_8.pointerTo())).pointerTo().pointerTo(),
+          new FunctionType(IntType.INT_8P, int8p,
+              int8p).pointerTo().pointerTo(),
           getClassRoT().pointerTo()
       };
-      classT = new NamedType(NamedTypes.CLASS_T_NAME,
-          new StructType(types).refineAbstractTypeTo(opaque));
+      StructType structType = new StructType(types);
+      classT = new NamedType(NamedTypes.CLASS_T_NAME, structType);
+      structType.refineAbstractTypeTo(opaque, classT);
       namedTypes.put(NamedTypes.CLASS_T_NAME, classT);
       irBuilder.namedType(classT);
     }
@@ -106,11 +108,12 @@ public class NamedTypes {
           IntType.INT_32,
           IntType.INT_32,
           IntType.INT_32,
-          IntType.INT_8.pointerTo(),
-          IntType.INT_8.pointerTo(),
+          IntType.INT_8P,
+          IntType.INT_8P,
           getMethodListT().pointerTo(),
           getObjcProtocolList().pointerTo(),
           getIVarListT().pointerTo(),
+          IntType.INT_8P,
           getPropListT().pointerTo()
       };
       classRoT = new NamedType(NamedTypes.CLASS_RO_T_NAME,
@@ -141,9 +144,9 @@ public class NamedTypes {
     NamedType objcMethod = namedTypes.get(NamedTypes.OBJC_METHOD_NAME);
     if (objcMethod == null) {
       IType[] types = new IType[] {
-          IntType.INT_8.pointerTo(),
-          IntType.INT_8.pointerTo(),
-          IntType.INT_8.pointerTo()
+          IntType.INT_8P,
+          IntType.INT_8P,
+          IntType.INT_8P
       };
       objcMethod = new NamedType(NamedTypes.OBJC_METHOD_NAME,
           new StructType(types));
@@ -159,11 +162,12 @@ public class NamedTypes {
     if (objcProtocolList == null) {
       IType[] types = new IType[] {
           IntType.INT_64,
-          getProtocolT()
+          VoidType.INSTANCE  // recursion hack
       };
       objcProtocolList = new NamedType(NamedTypes.OBJC_PROTOCOL_LIST_NAME,
           new StructType(types));
       namedTypes.put(NamedTypes.OBJC_PROTOCOL_LIST_NAME, objcProtocolList);
+      types[1] = new ArrayType(getProtocolT().pointerTo(), 0);
       irBuilder.namedType(objcProtocolList);
     }
     return objcProtocolList;
@@ -173,9 +177,9 @@ public class NamedTypes {
     NamedType protocolT = namedTypes.get(NamedTypes.PROTOCOL_T_NAME);
     if (protocolT == null) {
       IType[] types = new IType[] {
-        IntType.INT_8.pointerTo(),
-        IntType.INT_8.pointerTo(),
-        getObjcProtocolList().pointerTo(),
+        IntType.INT_8P,
+        IntType.INT_8P,
+        VoidType.INSTANCE,  // recursion hack
         getMethodListT().pointerTo(),
         getMethodListT().pointerTo(),
         getMethodListT().pointerTo(),
@@ -183,11 +187,12 @@ public class NamedTypes {
         getPropListT().pointerTo(),
         IntType.INT_32,
         IntType.INT_32,
-        IntType.INT_8.pointerTo().pointerTo()
+        IntType.INT_8P.pointerTo()
       };
-      protocolT = new NamedType(NamedTypes.PROP_T_NAME,
+      protocolT = new NamedType(NamedTypes.PROTOCOL_T_NAME,
           new StructType(types));
       namedTypes.put(NamedTypes.PROTOCOL_T_NAME, protocolT);
+      types[2] = getObjcProtocolList().pointerTo();
       irBuilder.namedType(protocolT);
     }
     return protocolT;
@@ -213,8 +218,8 @@ public class NamedTypes {
     NamedType propT = namedTypes.get(NamedTypes.PROP_T_NAME);
     if (propT == null) {
       IType[] types = new IType[] {
-          IntType.INT_8.pointerTo(),
-          IntType.INT_8.pointerTo()
+          IntType.INT_8P,
+          IntType.INT_8P
       };
       propT = new NamedType(NamedTypes.PROP_T_NAME, new StructType(types));
       namedTypes.put(NamedTypes.PROP_T_NAME, propT);
@@ -229,7 +234,7 @@ public class NamedTypes {
       IType[] types = new IType[] {
           IntType.INT_32,
           IntType.INT_32,
-          namedTypes.get(NamedTypes.IVAR_T_NAME)
+          new ArrayType(getIVarT(), 0)
       };
       ivarListT = new NamedType(NamedTypes.IVAR_LIST_T_NAME,
           new StructType(types));
@@ -244,8 +249,8 @@ public class NamedTypes {
     if (ivarT == null) {
       IType[] types = new IType[] {
           IntType.INT_64.pointerTo(),
-          IntType.INT_8.pointerTo(),
-          IntType.INT_8.pointerTo(),
+          IntType.INT_8P,
+          IntType.INT_8P,
           IntType.INT_32,
           IntType.INT_32
       };
@@ -260,8 +265,8 @@ public class NamedTypes {
     NamedType messageRef = namedTypes.get(NamedTypes.MESSAGE_REF_NAME);
     if (messageRef == null) {
       IType[] types = new IType[] {
-          IntType.INT_8.pointerTo(),
-          IntType.INT_8.pointerTo()
+          IntType.INT_8P,
+          IntType.INT_8P
       };
       messageRef = new NamedType(NamedTypes.MESSAGE_REF_NAME,
           new StructType(types));
