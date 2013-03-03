@@ -37,6 +37,7 @@ import com.github.rwl.irbuilder.values.DoubleValue;
 import com.github.rwl.irbuilder.values.GlobalVariable;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
+import com.github.rwl.irbuilder.values.LocalVariable;
 import com.github.rwl.irbuilder.values.LongValue;
 import com.github.rwl.irbuilder.values.StringValue;
 import com.github.rwl.irbuilder.values.StructValue;
@@ -272,12 +273,14 @@ public class SSAGenerator extends AbstractGenerator {
 
     IValue objcClassListRefsLocal = builder.load(objcClassListRefs, null);
     IValue objcSelRefsLocal = builder.load(objcSelRefs, null);
-    builder.bitcast(objcClassListRefsLocal, IntType.INT_8P, null);
+    LocalVariable a = builder.bitcast(objcClassListRefsLocal, IntType.INT_8P, null);
 
     List<IValue> args = buildArguments(method, arguments);
 
     IType methType = new FunctionType(IntType.INT_8P, IntType.INT_8P,
-        IntType.INT_8P, namedTypes.getOpaqueType()).pointerTo();
+        IntType.INT_8P, namedTypes.getOpaqueType().pointerTo()).pointerTo();
+    args.add(0, objcSelRefsLocal);
+    args.add(0, a);
     builder.call(new BitCast(getObjcMsgSend(), methType), args, null);
 
     llvmUsed.add(new BitCast(objcClassListRefs, IntType.INT_8P));
@@ -397,7 +400,7 @@ public class SSAGenerator extends AbstractGenerator {
     GlobalVariable unamed = builder.constant(UNAMED_CF_STRING_NAME, struct,
         null, false);
 
-    IValue bitcast = new BitCast(unamed, namedTypes.getOpaqueType());
+    IValue bitcast = new BitCast(unamed, namedTypes.getOpaqueType().pointerTo());
 
     valueStack.push(bitcast);
 
