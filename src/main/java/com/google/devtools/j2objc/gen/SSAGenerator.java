@@ -334,7 +334,7 @@ public class SSAGenerator extends AbstractGenerator {
       FunctionType funcType = new FunctionType(javaRefToLLVM(binding
           .getReturnType()), paramTypes, binding.isVarargs());
       GlobalVariable methVar = irBuilder.functionDecl(methodName, funcType);
-      irBuilder.call(methVar, argVals, null);
+      irBuilder.call(methVar, argVals);
     } else {
       if (binding instanceof IOSMethodBinding) {
         //binding.getName();

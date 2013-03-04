@@ -24,8 +24,11 @@ int main(int argc, char** argv) {
   str = @"baz";
 */
 
+    NSString *str = [NSString stringWithString:@"Hello World!"];
+    NSLog(@"%@", str);
+    
 //  NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    NSLog(@"%@", @"Hello World!");
+//    NSLog(@"%@", @"Hello World!");
 //    NSMakeRect(0,0,10,10);
 //  [pool drain];
   return 0;
