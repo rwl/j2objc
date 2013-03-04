@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
@@ -30,11 +31,13 @@ import com.github.rwl.irbuilder.values.IntValue;
 import com.github.rwl.irbuilder.values.LocalVariable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.devtools.j2objc.J2ObjC;
 import com.google.devtools.j2objc.J2ObjC.Language;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.NameTable;
+import com.google.devtools.j2objc.util.J2ObjCIRBuilder;
 
 /**
  * Generates LLVM byte-code (.ll) files from compilation units.
@@ -46,9 +49,13 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   /**
    * Helper object that makes it easy to generate LLVM instructions.
    */
-  private final IRBuilder irBuilder;
+  private final J2ObjCIRBuilder irBuilder;
 
-//  private final Map<String, NamedType> namedTypes = Maps.newHashMap();
+  /**
+   * Keeps track of which values are defined in the current scope and what
+   * their LLVM representation is.
+   */
+  private final Map<String, IValue> namedValues = Maps.newHashMap();
 
   private final List<IValue> llvmUsed = Lists.newArrayList();
 
@@ -71,7 +78,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   public LLVMModuleGenerator(String sourceFileName, Language language,
       String source, CompilationUnit unit) {
     super(sourceFileName, source, unit, false);
-    irBuilder = new IRBuilder(sourceFileName);
+    irBuilder = new J2ObjCIRBuilder(sourceFileName);
     suffix = language.getSuffix();
   }
 
@@ -206,7 +213,7 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
   }
 
   private void generateStatement(Statement stmt, boolean asFunction) {
-    SSAGenerator.generate(stmt, irBuilder, llvmUsed, asFunction);
+    SSAGenerator.generate(stmt, irBuilder, namedValues, llvmUsed, asFunction);
   }
 
   @Override

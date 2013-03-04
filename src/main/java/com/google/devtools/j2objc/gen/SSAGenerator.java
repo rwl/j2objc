@@ -2,6 +2,7 @@ package com.google.devtools.j2objc.gen;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -43,23 +44,23 @@ import com.github.rwl.irbuilder.values.StringValue;
 import com.github.rwl.irbuilder.values.StructValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.devtools.j2objc.types.GeneratedMethodBinding;
 import com.google.devtools.j2objc.types.IOSArrayTypeBinding;
 import com.google.devtools.j2objc.types.IOSMethod;
 import com.google.devtools.j2objc.types.IOSMethodBinding;
 import com.google.devtools.j2objc.types.Types;
 import com.google.devtools.j2objc.util.NameTable;
-import com.google.devtools.j2objc.util.NamedTypes;
+import com.google.devtools.j2objc.util.J2ObjCIRBuilder;
 
 public class SSAGenerator extends AbstractGenerator {
 
   private final boolean asFunction;
-  private final IRBuilder builder;
-  private final NamedTypes namedTypes;
-
-//  private final Map<String, NamedType> namedTypes;
+  private final J2ObjCIRBuilder irBuilder;
 
   private final List<IValue> llvmUsed;
+
+  private final Map<String, IValue> namedValues;
 
   private final Stack<IValue> valueStack = new Stack<IValue>();
   private final Stack<IType> typeStack = new Stack<IType>();
@@ -78,9 +79,9 @@ public class SSAGenerator extends AbstractGenerator {
   private static final String OBJC_METH_VAR_NAME_NAME = "\"\\01L_OBJC_METH_VAR_NAME_\"";
   private static final String OBJC_SEL_REFERENCES_NAME = "\"\\01L_OBJC_SELECTOR_REFERENCES_\"";
 
-  public static void generate(ASTNode node, IRBuilder builder,
+  public static void generate(ASTNode node, J2ObjCIRBuilder builder, Map<String, IValue> namedValues,
       List<IValue> llvmUsed, boolean asFunction) {
-    SSAGenerator generator = new SSAGenerator(node, builder, llvmUsed,
+    SSAGenerator generator = new SSAGenerator(node, builder, namedValues, llvmUsed,
         asFunction);
     generator.run(node);
 
@@ -89,15 +90,15 @@ public class SSAGenerator extends AbstractGenerator {
     assert generator.nameStack.size() == 0: "name stack: " + generator.nameStack.size();
   }
 
-  public SSAGenerator(ASTNode node, IRBuilder builder, List<IValue> llvmUsed,
-      boolean asFunction) {
+  public SSAGenerator(ASTNode node, J2ObjCIRBuilder builder, Map<String, IValue> namedValues,
+      List<IValue> llvmUsed, boolean asFunction) {
     CompilationUnit unit = null;
     if (node != null && node.getRoot() instanceof CompilationUnit) {
       unit = (CompilationUnit) node.getRoot();
     }
     this.asFunction = asFunction;
-    this.builder = builder;
-    this.namedTypes = new NamedTypes(builder);
+    this.irBuilder = builder;
+    this.namedValues = namedValues;
     this.llvmUsed = llvmUsed;
   }
 
@@ -237,7 +238,7 @@ public class SSAGenerator extends AbstractGenerator {
 
       lhs.accept(this);
       rhs.accept(this);
-      builder.store(nameStack.pop(), valueStack.pop());
+      irBuilder.store(nameStack.pop(), valueStack.pop());
     }
     return false;
   }
@@ -261,27 +262,30 @@ public class SSAGenerator extends AbstractGenerator {
       arguments.add(0, node.getExpression());
     }
 
-    GlobalVariable objcClass = builder.global(String.format("\"OBJC_CLASS_$_%s\"",
-        fullName), namedTypes.getClassT(), Linkage.EXTERNAL, false);
-    GlobalVariable objcClassListRefs = builder.global(OBJC_CLASS_LIST_REFERENCES_NAME,
-        objcClass, Linkage.INTERNAL, false);
-
-    GlobalVariable objcMethVarName = builder.global(OBJC_METH_VAR_NAME_NAME,
-        new StringValue(method.getName() + ':'), Linkage.INTERNAL, false);
-    GlobalVariable objcSelRefs = builder.global(OBJC_SEL_REFERENCES_NAME,
-        objcMethVarName, Linkage.INTERNAL, false);
-
-    IValue objcClassListRefsLocal = builder.load(objcClassListRefs, null);
-    IValue objcSelRefsLocal = builder.load(objcSelRefs, null);
-    LocalVariable a = builder.bitcast(objcClassListRefsLocal, IntType.INT_8P, null);
+    GlobalVariable objcClass = irBuilder.global(
+        String.format("\"OBJC_CLASS_$_%s\"", StringValue.escape(fullName)),
+        irBuilder.getClassT(), Linkage.EXTERNAL, false);
+    GlobalVariable objcClassListRefs = irBuilder.global(
+        OBJC_CLASS_LIST_REFERENCES_NAME, objcClass, Linkage.INTERNAL, false);
 
     List<IValue> args = buildArguments(method, arguments);
 
+    GlobalVariable objcMethVarName = irBuilder.global(OBJC_METH_VAR_NAME_NAME,
+        new StringValue(method.getName() + ':'), Linkage.INTERNAL, false);
+    GlobalVariable objcSelRefs = irBuilder.global(OBJC_SEL_REFERENCES_NAME,
+        objcMethVarName, Linkage.INTERNAL, false);
+
+    IValue objcClassListRefsLocal = irBuilder.load(objcClassListRefs, null);
+    IValue objcSelRefsLocal = irBuilder.load(objcSelRefs, null);
+    LocalVariable a = irBuilder.bitcast(objcClassListRefsLocal, IntType.INT_8P, null);
+
     IType methType = new FunctionType(IntType.INT_8P, IntType.INT_8P,
-        IntType.INT_8P, namedTypes.getOpaqueType().pointerTo()).pointerTo();
+        IntType.INT_8P, irBuilder.getOpaqueType().pointerTo()).pointerTo();
     args.add(0, objcSelRefsLocal);
     args.add(0, a);
-    builder.call(new BitCast(getObjcMsgSend(), methType), args, null);
+    LocalVariable res = irBuilder.call(new BitCast(getObjcMsgSend(), methType), args, null);
+
+    valueStack.push(irBuilder.bitcast(res, irBuilder.getOpaqueType().pointerTo(), null));
 
     llvmUsed.add(new BitCast(objcClassListRefs, IntType.INT_8P));
     llvmUsed.add(objcMethVarName);
@@ -293,7 +297,7 @@ public class SSAGenerator extends AbstractGenerator {
     if (objcMsgSend == null) {
       FunctionType funcType = new FunctionType(IntType.INT_8P,
           Lists.newArrayList(IntType.INT_8P, IntType.INT_8P), true);
-      objcMsgSend = builder.functionDecl(OBJC_MSG_SEND, funcType,
+      objcMsgSend = irBuilder.functionDecl(OBJC_MSG_SEND, funcType,
           AttrKind.NON_LAZY_BIND);
     }
     return objcMsgSend;
@@ -327,10 +331,10 @@ public class SSAGenerator extends AbstractGenerator {
         }
         argVals.add(valueStack.pop());
       }
-      GlobalVariable methVar = builder.functionDecl(methodName,
-          new FunctionType(javaRefToLLVM(binding.getReturnType()), paramTypes,
-              binding.isVarargs()));
-      builder.call(methVar, argVals, null);
+      FunctionType funcType = new FunctionType(javaRefToLLVM(binding
+          .getReturnType()), paramTypes, binding.isVarargs());
+      GlobalVariable methVar = irBuilder.functionDecl(methodName, funcType);
+      irBuilder.call(methVar, argVals, null);
     } else {
       if (binding instanceof IOSMethodBinding) {
         //binding.getName();
@@ -376,7 +380,12 @@ public class SSAGenerator extends AbstractGenerator {
 
       } else {
         String name = NameTable.getName(node);
-        nameStack.push(name);
+        if (namedValues.containsKey(name)) {
+          LocalVariable loaded = irBuilder.load(namedValues.get(name), null);
+          valueStack.push(loaded);
+        } else {
+          nameStack.push(name);
+        }
       }
       return false;
     }
@@ -387,7 +396,7 @@ public class SSAGenerator extends AbstractGenerator {
   public boolean visit(StringLiteral node) {
     String s = node.getLiteralValue();
 
-    GlobalVariable str = builder.constant(STR_NAME, new StringValue(s),
+    GlobalVariable str = irBuilder.constant(STR_NAME, new StringValue(s),
         Linkage.LINKER_PRIVATE, true);
 
     StructValue struct = new StructValue(new IValue[] {
@@ -395,12 +404,12 @@ public class SSAGenerator extends AbstractGenerator {
        new IntValue(1992),
        str,
        new LongValue(s.length())
-    }, namedTypes.getStructNSConstString());
+    }, irBuilder.getStructNSConstString());
 
-    GlobalVariable unamed = builder.constant(UNAMED_CF_STRING_NAME, struct,
+    GlobalVariable unamed = irBuilder.constant(UNAMED_CF_STRING_NAME, struct,
         null, false);
 
-    IValue bitcast = new BitCast(unamed, namedTypes.getOpaqueType().pointerTo());
+    IValue bitcast = new BitCast(unamed, irBuilder.getOpaqueType().pointerTo());
 
     valueStack.push(bitcast);
 
@@ -409,7 +418,7 @@ public class SSAGenerator extends AbstractGenerator {
 
   private GlobalVariable getConstStringClassRef() {
     if (constStringClassRef == null) {
-      constStringClassRef = builder.global(CONST_STRING_CLASS_REF_NAME,
+      constStringClassRef = irBuilder.global(CONST_STRING_CLASS_REF_NAME,
           new ArrayType(IntType.INT_32, 0), Linkage.EXTERNAL, false);
     }
     return constStringClassRef;
@@ -419,13 +428,13 @@ public class SSAGenerator extends AbstractGenerator {
   public boolean visit(VariableDeclarationFragment node) {
     node.getName().accept(this);  // SimpleName
     String name = nameStack.pop();
-    builder.alloca(typeStack.pop(), name, null);
+    LocalVariable alloca = irBuilder.alloca(typeStack.pop(), name, null);
 //    valueStack.push(alloca);
-//    namedValues.put(name, alloca);
+    namedValues.put(name, alloca);
 
     if (node.getInitializer() != null) {
       node.getInitializer().accept(this);
-      builder.store(name, valueStack.pop());
+      irBuilder.store(name, valueStack.pop());
     }
     return false;
   }
@@ -457,7 +466,7 @@ public class SSAGenerator extends AbstractGenerator {
   private IType javaRefToLLVM(ITypeBinding binding) {
     IType type = NameTable.javaRefToLLVM(binding);
     if (type.equals(OpaqueType.INSTANCE)) {
-      type = namedTypes.getOpaqueType();
+      type = irBuilder.getOpaqueType().pointerTo();
     }
     return type;
   }

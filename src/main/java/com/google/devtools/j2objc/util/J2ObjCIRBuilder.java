@@ -11,16 +11,10 @@ import com.github.rwl.irbuilder.types.NamedType;
 import com.github.rwl.irbuilder.types.OpaqueType;
 import com.github.rwl.irbuilder.types.StructType;
 import com.github.rwl.irbuilder.types.VoidType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-public class NamedTypes {
+public class J2ObjCIRBuilder extends IRBuilder {
 
-  private final IRBuilder irBuilder;
-
-  public final Map<String, NamedType> namedTypes = Maps.newHashMap();
-
-  public static final String OPAQUE_TYPE_NAME = "opq";
   public static final String CLASS_T_NAME = "struct._class_t";
   public static final String OBJC_CACHE_NAME = "struct._objc_cache";
   public static final String CLASS_RO_T_NAME = "struct._class_ro_t";
@@ -35,23 +29,23 @@ public class NamedTypes {
   public static final String NS_CONSTANT_STRING_NAME = "struct.NSConstantString";
   public static final String MESSAGE_REF_NAME = "struct._message_ref_t";
 
-  public NamedTypes(IRBuilder irBuilder) {
-    this.irBuilder = irBuilder;
+  public final Map<String, NamedType> namedTypes = Maps.newHashMap();
+
+  public final String opaqueTypeName;
+
+  public J2ObjCIRBuilder(String moduleID) {
+    super(moduleID);
+    NamedType opaque = namedType(null, OpaqueType.INSTANCE);
+    opaqueTypeName = opaque.getName();
+    namedTypes.put(opaqueTypeName, opaque);
   }
 
   public NamedType getOpaqueType() {
-    NamedType opaque = namedTypes.get(NamedTypes.OPAQUE_TYPE_NAME);
-    if (opaque == null) {
-      opaque = new NamedType(NamedTypes.OPAQUE_TYPE_NAME,
-          OpaqueType.INSTANCE);
-      namedTypes.put(NamedTypes.OPAQUE_TYPE_NAME, opaque);
-      irBuilder.namedType(opaque);
-    }
-    return opaque;
+    return namedTypes.get(opaqueTypeName);
   }
 
   public IType getStructNSConstString() {
-    NamedType structNSConstString = namedTypes.get(NamedTypes
+    NamedType structNSConstString = namedTypes.get(J2ObjCIRBuilder
         .NS_CONSTANT_STRING_NAME);
     if (structNSConstString == null) {
       IType[] types = new IType[] {
@@ -60,16 +54,16 @@ public class NamedTypes {
           IntType.INT_8P,
           IntType.INT_64
       };
-      structNSConstString = new NamedType(NamedTypes
+      structNSConstString = new NamedType(J2ObjCIRBuilder
           .NS_CONSTANT_STRING_NAME, new StructType(types));
-      namedTypes.put(NamedTypes.NS_CONSTANT_STRING_NAME, structNSConstString);
-      irBuilder.namedType(structNSConstString);
+      namedTypes.put(J2ObjCIRBuilder.NS_CONSTANT_STRING_NAME, structNSConstString);
+      namedType(structNSConstString);
     }
     return structNSConstString;
   }
 
   public NamedType getClassT() {
-    NamedType classT = namedTypes.get(NamedTypes.CLASS_T_NAME);
+    NamedType classT = namedTypes.get(J2ObjCIRBuilder.CLASS_T_NAME);
     if (classT == null) {
       OpaqueType opaque = new OpaqueType();
       IType int8p = IntType.INT_8P;
@@ -82,27 +76,27 @@ public class NamedTypes {
           getClassRoT().pointerTo()
       };
       StructType structType = new StructType(types);
-      classT = new NamedType(NamedTypes.CLASS_T_NAME, structType);
+      classT = new NamedType(J2ObjCIRBuilder.CLASS_T_NAME, structType);
       structType.refineAbstractTypeTo(opaque, classT);
-      namedTypes.put(NamedTypes.CLASS_T_NAME, classT);
-      irBuilder.namedType(classT);
+      namedTypes.put(J2ObjCIRBuilder.CLASS_T_NAME, classT);
+      namedType(classT);
     }
     return classT;
   }
 
   public NamedType getObjcCache() {
-    NamedType objcCache = namedTypes.get(NamedTypes.OBJC_CACHE_NAME);
+    NamedType objcCache = namedTypes.get(J2ObjCIRBuilder.OBJC_CACHE_NAME);
     if (objcCache == null) {
-      objcCache = new NamedType(NamedTypes.OBJC_CACHE_NAME,
+      objcCache = new NamedType(J2ObjCIRBuilder.OBJC_CACHE_NAME,
           OpaqueType.INSTANCE);
-      namedTypes.put(NamedTypes.OBJC_CACHE_NAME, objcCache);
-      irBuilder.namedType(objcCache);
+      namedTypes.put(J2ObjCIRBuilder.OBJC_CACHE_NAME, objcCache);
+      namedType(objcCache);
     }
     return objcCache;
   }
 
   public NamedType getClassRoT() {
-    NamedType classRoT = namedTypes.get(NamedTypes.CLASS_RO_T_NAME);
+    NamedType classRoT = namedTypes.get(J2ObjCIRBuilder.CLASS_RO_T_NAME);
     if (classRoT == null) {
       IType[] types = new IType[] {
           IntType.INT_32,
@@ -116,65 +110,65 @@ public class NamedTypes {
           IntType.INT_8P,
           getPropListT().pointerTo()
       };
-      classRoT = new NamedType(NamedTypes.CLASS_RO_T_NAME,
+      classRoT = new NamedType(J2ObjCIRBuilder.CLASS_RO_T_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.CLASS_RO_T_NAME, classRoT);
-      irBuilder.namedType(classRoT);
+      namedTypes.put(J2ObjCIRBuilder.CLASS_RO_T_NAME, classRoT);
+      namedType(classRoT);
     }
     return classRoT;
   }
 
   public NamedType getMethodListT() {
-    NamedType methodListT = namedTypes.get(NamedTypes.METHOD_LIST_T_NAME);
+    NamedType methodListT = namedTypes.get(J2ObjCIRBuilder.METHOD_LIST_T_NAME);
     if (methodListT == null) {
       IType[] types = new IType[] {
           IntType.INT_32,
           IntType.INT_32,
           new ArrayType(getObjcMethod(), 0)
       };
-      methodListT = new NamedType(NamedTypes.METHOD_LIST_T_NAME,
+      methodListT = new NamedType(J2ObjCIRBuilder.METHOD_LIST_T_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.METHOD_LIST_T_NAME, methodListT);
-      irBuilder.namedType(methodListT);
+      namedTypes.put(J2ObjCIRBuilder.METHOD_LIST_T_NAME, methodListT);
+      namedType(methodListT);
     }
     return methodListT;
   }
 
   public NamedType getObjcMethod() {
-    NamedType objcMethod = namedTypes.get(NamedTypes.OBJC_METHOD_NAME);
+    NamedType objcMethod = namedTypes.get(J2ObjCIRBuilder.OBJC_METHOD_NAME);
     if (objcMethod == null) {
       IType[] types = new IType[] {
           IntType.INT_8P,
           IntType.INT_8P,
           IntType.INT_8P
       };
-      objcMethod = new NamedType(NamedTypes.OBJC_METHOD_NAME,
+      objcMethod = new NamedType(J2ObjCIRBuilder.OBJC_METHOD_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.OBJC_METHOD_NAME, objcMethod);
-      irBuilder.namedType(objcMethod);
+      namedTypes.put(J2ObjCIRBuilder.OBJC_METHOD_NAME, objcMethod);
+      namedType(objcMethod);
     }
     return objcMethod;
   }
 
   public NamedType getObjcProtocolList() {
-    NamedType objcProtocolList = namedTypes.get(NamedTypes
+    NamedType objcProtocolList = namedTypes.get(J2ObjCIRBuilder
         .OBJC_PROTOCOL_LIST_NAME);
     if (objcProtocolList == null) {
       IType[] types = new IType[] {
           IntType.INT_64,
           VoidType.INSTANCE  // recursion hack
       };
-      objcProtocolList = new NamedType(NamedTypes.OBJC_PROTOCOL_LIST_NAME,
+      objcProtocolList = new NamedType(J2ObjCIRBuilder.OBJC_PROTOCOL_LIST_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.OBJC_PROTOCOL_LIST_NAME, objcProtocolList);
+      namedTypes.put(J2ObjCIRBuilder.OBJC_PROTOCOL_LIST_NAME, objcProtocolList);
       types[1] = new ArrayType(getProtocolT().pointerTo(), 0);
-      irBuilder.namedType(objcProtocolList);
+      namedType(objcProtocolList);
     }
     return objcProtocolList;
   }
 
   public NamedType getProtocolT() {
-    NamedType protocolT = namedTypes.get(NamedTypes.PROTOCOL_T_NAME);
+    NamedType protocolT = namedTypes.get(J2ObjCIRBuilder.PROTOCOL_T_NAME);
     if (protocolT == null) {
       IType[] types = new IType[] {
         IntType.INT_8P,
@@ -189,63 +183,63 @@ public class NamedTypes {
         IntType.INT_32,
         IntType.INT_8P.pointerTo()
       };
-      protocolT = new NamedType(NamedTypes.PROTOCOL_T_NAME,
+      protocolT = new NamedType(J2ObjCIRBuilder.PROTOCOL_T_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.PROTOCOL_T_NAME, protocolT);
+      namedTypes.put(J2ObjCIRBuilder.PROTOCOL_T_NAME, protocolT);
       types[2] = getObjcProtocolList().pointerTo();
-      irBuilder.namedType(protocolT);
+      namedType(protocolT);
     }
     return protocolT;
   }
 
   public NamedType getPropListT() {
-    NamedType propListT = namedTypes.get(NamedTypes.PROP_LIST_T_NAME);
+    NamedType propListT = namedTypes.get(J2ObjCIRBuilder.PROP_LIST_T_NAME);
     if (propListT == null) {
       IType[] types = new IType[] {
           IntType.INT_32,
           IntType.INT_32,
           new ArrayType(getPropT(), 0)
       };
-      propListT = new NamedType(NamedTypes.PROP_LIST_T_NAME,
+      propListT = new NamedType(J2ObjCIRBuilder.PROP_LIST_T_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.PROP_LIST_T_NAME, propListT);
-      irBuilder.namedType(propListT);
+      namedTypes.put(J2ObjCIRBuilder.PROP_LIST_T_NAME, propListT);
+      namedType(propListT);
     }
     return propListT;
   }
 
   public NamedType getPropT() {
-    NamedType propT = namedTypes.get(NamedTypes.PROP_T_NAME);
+    NamedType propT = namedTypes.get(J2ObjCIRBuilder.PROP_T_NAME);
     if (propT == null) {
       IType[] types = new IType[] {
           IntType.INT_8P,
           IntType.INT_8P
       };
-      propT = new NamedType(NamedTypes.PROP_T_NAME, new StructType(types));
-      namedTypes.put(NamedTypes.PROP_T_NAME, propT);
-      irBuilder.namedType(propT);
+      propT = new NamedType(J2ObjCIRBuilder.PROP_T_NAME, new StructType(types));
+      namedTypes.put(J2ObjCIRBuilder.PROP_T_NAME, propT);
+      namedType(propT);
     }
     return propT;
   }
 
   public NamedType getIVarListT() {
-    NamedType ivarListT = namedTypes.get(NamedTypes.IVAR_LIST_T_NAME);
+    NamedType ivarListT = namedTypes.get(J2ObjCIRBuilder.IVAR_LIST_T_NAME);
     if (ivarListT == null) {
       IType[] types = new IType[] {
           IntType.INT_32,
           IntType.INT_32,
           new ArrayType(getIVarT(), 0)
       };
-      ivarListT = new NamedType(NamedTypes.IVAR_LIST_T_NAME,
+      ivarListT = new NamedType(J2ObjCIRBuilder.IVAR_LIST_T_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.IVAR_LIST_T_NAME, ivarListT);
-      irBuilder.namedType(ivarListT);
+      namedTypes.put(J2ObjCIRBuilder.IVAR_LIST_T_NAME, ivarListT);
+      namedType(ivarListT);
     }
     return ivarListT;
   }
 
   public NamedType getIVarT() {
-    NamedType ivarT = namedTypes.get(NamedTypes.IVAR_T_NAME);
+    NamedType ivarT = namedTypes.get(J2ObjCIRBuilder.IVAR_T_NAME);
     if (ivarT == null) {
       IType[] types = new IType[] {
           IntType.INT_64.pointerTo(),
@@ -254,24 +248,24 @@ public class NamedTypes {
           IntType.INT_32,
           IntType.INT_32
       };
-      ivarT = new NamedType(NamedTypes.IVAR_T_NAME, new StructType(types));
-      namedTypes.put(NamedTypes.IVAR_T_NAME, ivarT);
-      irBuilder.namedType(ivarT);
+      ivarT = new NamedType(J2ObjCIRBuilder.IVAR_T_NAME, new StructType(types));
+      namedTypes.put(J2ObjCIRBuilder.IVAR_T_NAME, ivarT);
+      namedType(ivarT);
     }
     return ivarT;
   }
 
   public NamedType getMessageRef() {
-    NamedType messageRef = namedTypes.get(NamedTypes.MESSAGE_REF_NAME);
+    NamedType messageRef = namedTypes.get(J2ObjCIRBuilder.MESSAGE_REF_NAME);
     if (messageRef == null) {
       IType[] types = new IType[] {
           IntType.INT_8P,
           IntType.INT_8P
       };
-      messageRef = new NamedType(NamedTypes.MESSAGE_REF_NAME,
+      messageRef = new NamedType(J2ObjCIRBuilder.MESSAGE_REF_NAME,
           new StructType(types));
-      namedTypes.put(NamedTypes.MESSAGE_REF_NAME, messageRef);
-      irBuilder.namedType(messageRef);
+      namedTypes.put(J2ObjCIRBuilder.MESSAGE_REF_NAME, messageRef);
+      namedType(messageRef);
     }
     return messageRef;
   }
