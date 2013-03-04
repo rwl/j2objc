@@ -264,16 +264,19 @@ public class SSAGenerator extends AbstractGenerator {
 
     GlobalVariable objcClass = irBuilder.global(
         String.format("\"OBJC_CLASS_$_%s\"", StringValue.escape(fullName)),
-        irBuilder.getClassT(), Linkage.EXTERNAL, false);
+        irBuilder.getClassT(), Linkage.EXTERNAL, false, null);
     GlobalVariable objcClassListRefs = irBuilder.global(
-        OBJC_CLASS_LIST_REFERENCES_NAME, objcClass, Linkage.INTERNAL, false);
+        OBJC_CLASS_LIST_REFERENCES_NAME, objcClass, Linkage.INTERNAL, false,
+        "__DATA, __objc_classrefs, regular, no_dead_strip");
 
     List<IValue> args = buildArguments(method, arguments);
 
     GlobalVariable objcMethVarName = irBuilder.global(OBJC_METH_VAR_NAME_NAME,
-        new StringValue(method.getName() + ':'), Linkage.INTERNAL, false);
+        new StringValue(method.getName() + ':'), Linkage.INTERNAL, false,
+        "__TEXT,__objc_methname,cstring_literals");
     GlobalVariable objcSelRefs = irBuilder.global(OBJC_SEL_REFERENCES_NAME,
-        objcMethVarName, Linkage.INTERNAL, false);
+        objcMethVarName, Linkage.INTERNAL, false,
+        "__DATA, __objc_selrefs, literal_pointers, no_dead_strip");
 
     IValue objcClassListRefsLocal = irBuilder.load(objcClassListRefs, null);
     IValue objcSelRefsLocal = irBuilder.load(objcSelRefs, null);
@@ -397,7 +400,7 @@ public class SSAGenerator extends AbstractGenerator {
     String s = node.getLiteralValue();
 
     GlobalVariable str = irBuilder.constant(STR_NAME, new StringValue(s),
-        Linkage.LINKER_PRIVATE, true);
+        Linkage.LINKER_PRIVATE, true, null);
 
     StructValue struct = new StructValue(new IValue[] {
        getConstStringClassRef(),
@@ -407,7 +410,7 @@ public class SSAGenerator extends AbstractGenerator {
     }, irBuilder.getStructNSConstString());
 
     GlobalVariable unamed = irBuilder.constant(UNAMED_CF_STRING_NAME, struct,
-        null, false);
+        null, false, "__DATA,__cfstring");
 
     IValue bitcast = new BitCast(unamed, irBuilder.getOpaqueType().pointerTo());
 
@@ -419,7 +422,7 @@ public class SSAGenerator extends AbstractGenerator {
   private GlobalVariable getConstStringClassRef() {
     if (constStringClassRef == null) {
       constStringClassRef = irBuilder.global(CONST_STRING_CLASS_REF_NAME,
-          new ArrayType(IntType.INT_32, 0), Linkage.EXTERNAL, false);
+          new ArrayType(IntType.INT_32, 0), Linkage.EXTERNAL, false, null);
     }
     return constStringClassRef;
   }

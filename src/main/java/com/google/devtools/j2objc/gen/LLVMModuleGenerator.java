@@ -29,6 +29,8 @@ import com.github.rwl.irbuilder.values.ArrayValue;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
 import com.github.rwl.irbuilder.values.LocalVariable;
+import com.github.rwl.irbuilder.values.MetadataNode;
+import com.github.rwl.irbuilder.values.MetadataString;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -124,8 +126,20 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     if (llvmUsed.size() > 0) {
       irBuilder.global("llvm.used", new ArrayValue(new ArrayType(IntType
           .INT_8.pointerTo(), llvmUsed.size()), llvmUsed), Linkage.APPENDING,
-          false);
+          false, "llvm.metadata");
     }
+
+    MetadataNode ver = irBuilder.metadataNode(new IntValue(1),
+        new MetadataString("Objective-C Version"), new IntValue(2));
+    MetadataNode imgVer = irBuilder.metadataNode(new IntValue(1),
+        new MetadataString("Objective-C Image Info Version"), new IntValue(0));
+    MetadataNode imgInfo = irBuilder.metadataNode(new IntValue(1),
+        new MetadataString("Objective-C Image Info Section"),
+        new MetadataString("__DATA, __objc_imageinfo, regular, no_dead_strip"));
+    MetadataNode gc = irBuilder.metadataNode(new IntValue(4),
+        new MetadataString("Objective-C Garbage Collection"), new IntValue(0));
+
+    irBuilder.namedMetadata("llvm.module.flags", ver, imgVer, imgInfo, gc);
 
     save(unit);
   }
