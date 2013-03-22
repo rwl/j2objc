@@ -16,6 +16,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import com.github.rwl.irbuilder.IRBuilder;
@@ -26,11 +27,15 @@ import com.github.rwl.irbuilder.types.FunctionType;
 import com.github.rwl.irbuilder.types.IType;
 import com.github.rwl.irbuilder.types.IntType;
 import com.github.rwl.irbuilder.values.ArrayValue;
+import com.github.rwl.irbuilder.values.GlobalVariable;
 import com.github.rwl.irbuilder.values.IValue;
 import com.github.rwl.irbuilder.values.IntValue;
 import com.github.rwl.irbuilder.values.LocalVariable;
 import com.github.rwl.irbuilder.values.MetadataNode;
 import com.github.rwl.irbuilder.values.MetadataString;
+import com.github.rwl.irbuilder.values.NullValue;
+import com.github.rwl.irbuilder.values.StringValue;
+import com.github.rwl.irbuilder.values.StructValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -65,6 +70,12 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
    * Suffix for LLVM byte-code file
    */
   private final String suffix;
+
+  private static final String OBJC_EMPTY_CACHE = "_objc_empty_cache";
+  private static final String OBJC_EMPTY_VTABLE = "_objc_empty_vtable";
+
+  private GlobalVariable objcEmptyCache = null;
+  private GlobalVariable objcEmptyVTable = null;
 
   /**
    * Generate an LLVM module file for the specified compilation unit.
@@ -144,9 +155,48 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     save(unit);
   }
 
+  @Override
   public void generate(TypeDeclaration node) {
     if (!node.isInterface()) {
+      String superName = NameTable.getSuperClassName(node);
+
+      GlobalVariable superMetaclassGlobal = irBuilder.global(String.format("\"OBJC_METACLASS_$_%s\"", superName),
+          irBuilder.getClassT(), Linkage.EXTERNAL, false, null);
+
       String typeName = NameTable.getFullName(node);
+      GlobalVariable classNameGlobal = irBuilder.global("\"\01L_OBJC_CLASS_NAME_\"",
+          new StringValue(typeName), Linkage.INTERNAL, false,
+          "__TEXT,__objc_classname,cstring_literals");
+
+      GlobalVariable metaclassROGlobal = irBuilder.global(String.format("\"\01l_OBJC_METACLASS_RO_$_%s\"", typeName),
+          new StructValue(new IValue[] {
+              new IntValue(1),
+              new IntValue(40),
+              new IntValue(40),
+              new NullValue(IntType.INT_8P),
+              classNameGlobal,
+              new NullValue(irBuilder.getMethodListT()),
+              new NullValue(irBuilder.getObjcProtocolList()),
+              new NullValue(irBuilder.getIVarListT()),
+              new NullValue(irBuilder.getPropListT())
+          }, irBuilder.getClassRoT()), Linkage.INTERNAL, false, "__DATA, __objc_const");
+
+      GlobalVariable metaclassGlobal = irBuilder.global(String.format("\"OBJC_METACLASS_$_%s\"", typeName),
+          new StructValue(new IValue[] {
+              superMetaclassGlobal,
+              superMetaclassGlobal,
+              getObjcEmptyCache(),
+              getObjcEmptyVTable(),
+              metaclassROGlobal
+          }, irBuilder.getClassT()), null, false, "__DATA, __objc_data");
+
+      GlobalVariable superClassGlobal = irBuilder.global(String.format("\"OBJC_CLASS_$_%s\"", superName),
+          irBuilder.getClassT(), Linkage.EXTERNAL, false, null);
+
+
+      @SuppressWarnings("unchecked")
+      List<Type> interfaces = node.superInterfaceTypes(); // safe by definition
+
       List<FieldDeclaration> fields = Lists.newArrayList(node.getFields());
       //printStaticReferencesMethod(fields);
       //printStaticVars(Lists.newArrayList(node.getFields()), /* isInterface */ false);
@@ -165,9 +215,29 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
       if (main != null) {
         printMainMethod(main, typeName);
       }
+    } else {
     }
   }
 
+  private GlobalVariable getObjcEmptyCache() {
+    if (objcEmptyCache == null) {
+      objcEmptyCache = irBuilder.global(OBJC_EMPTY_CACHE,
+          irBuilder.getObjcCache(), Linkage.EXTERNAL, false, null);
+    }
+    return objcEmptyCache;
+  }
+
+  private GlobalVariable getObjcEmptyVTable() {
+    if (objcEmptyVTable == null) {
+      IType funcType = new FunctionType(IntType.INT_8P,
+          IntType.INT_8P, IntType.INT_8P).pointerTo();
+      objcEmptyVTable = irBuilder.global(OBJC_EMPTY_VTABLE,
+          funcType, Linkage.EXTERNAL, false, null);
+    }
+    return objcEmptyVTable;
+  }
+
+  @Override
   public void generate(EnumDeclaration node) {
 
   }
@@ -237,13 +307,39 @@ public class LLVMModuleGenerator extends ObjectiveCSourceFileGenerator {
     IMethodBinding binding = Types.getMethodBinding(m);
     String methodName = NameTable.getName(binding);
 
-    String baseDeclaration = String.format("%c (%s)%s", isStatic ? '+' : '-',
-        NameTable.javaRefToObjC(m.getReturnType2()), methodName);
+    GlobalVariable methVarNameGlobal = irBuilder.global("\"\01L_OBJC_METH_VAR_NAME_\"",
+        new StringValue(methodName), Linkage.INTERNAL, false,
+        "__TEXT,__objc_methname,cstring_literals");
+
+    GlobalVariable methVarTypeGlobal = buildMethodTypeEncoding(m);
+
+//    String baseDeclaration = String.format("%c (%s)%s", isStatic ? '+' : '-',
+//        NameTable.javaRefToObjC(m.getReturnType2()), methodName);
 
     @SuppressWarnings("unchecked")
     List<SingleVariableDeclaration> params = m.parameters(); // safe by definition
 //    parametersDeclaration(Types.getOriginalMethodBinding(binding), params, baseDeclaration, sb);
     return "";
+  }
+
+  private GlobalVariable buildMethodTypeEncoding(MethodDeclaration m) {
+    int bytes = 16;
+
+    @SuppressWarnings("unchecked")
+    List<SingleVariableDeclaration> params = m.parameters(); // safe by definition
+    String paramEnc = "";
+    for (SingleVariableDeclaration param : params) {
+      paramEnc += NameTable.typeEncoding(param.getType());
+      int size = NameTable.encodingSize(param.getType());
+      paramEnc += String.valueOf(size);
+      bytes += size;
+    }
+
+    String encoding = String.format("%s%d@0:8%s",
+        NameTable.typeEncoding(m.getReturnType2()), bytes, paramEnc);
+
+    return irBuilder.global("\"\\01L_OBJC_METH_VAR_TYPE_\"", new StringValue(encoding),
+        Linkage.INTERNAL, false, "__TEXT,__objc_methtype,cstring_literals");
   }
 
 }

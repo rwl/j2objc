@@ -412,6 +412,20 @@ public class NameTable {
     return OpaqueType.INSTANCE;
   }
 
+  public static String typeEncoding(Type type) {
+    if (type.isPrimitiveType() && ((PrimitiveType) type).getPrimitiveTypeCode() == PrimitiveType.VOID) {
+      return "v";
+    }
+    return null;
+  }
+
+  public static int encodingSize(Type type) {
+    if (type.isPrimitiveType() && ((PrimitiveType) type).getPrimitiveTypeCode() == PrimitiveType.INT) {
+      return 8;
+    }
+    return 0;
+  }
+
   /**
    * Return a comma-separated list of field names from a fragments list.
    * Skip any discarded variables; currently that's just serialVersionUID.
